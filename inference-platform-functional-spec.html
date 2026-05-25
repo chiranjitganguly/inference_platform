@@ -1,0 +1,1206 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AI Inference Platform — Functional Specifications</title>
+<style>
+:root{--bg:#0f0f0e;--bg2:#161614;--bg3:#1e1e1c;--bg4:#252523;--bd:#2a2a27;--bd2:#363633;--tx:#d0cec5;--tx2:#8a8a82;--tx3:#555550;--cd:#0b0b0a;--gr:#7ab648;--gd:#192410;--bl:#5b9bd5;--bd-bl:#0c1a2a;--am:#d4a24a;--ad:#271d09;--rd:#d46b6b;--rdd:#280f0f;--tl:#4ab8a0;--mn:'JetBrains Mono','Fira Code',monospace;--sn:system-ui,sans-serif;--r:8px}
+*{box-sizing:border-box;margin:0;padding:0}html{font-size:13px}body{background:var(--bg);color:var(--tx);font-family:var(--sn);line-height:1.6}
+/* layout */
+.shell{display:flex;min-height:100vh}
+.sb{width:220px;min-width:220px;background:var(--bg2);border-right:1px solid var(--bd);position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0}
+.cn{flex:1;padding:2rem;max-width:940px}
+/* sidebar */
+.sl{padding:.8rem 1rem .7rem;border-bottom:1px solid var(--bd);margin-bottom:.4rem}
+.sl h1{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tx2);line-height:1.45}
+.sl p{font-size:10px;color:var(--tx3);margin-top:2px}
+.ss{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);padding:.55rem 1rem .25rem}
+.nb{display:block;width:100%;text-align:left;padding:.4rem 1rem;border:none;background:none;color:var(--tx2);cursor:pointer;font-size:11px;font-family:var(--sn);border-left:2px solid transparent;transition:all .12s}
+.nb:hover{background:var(--bg3);color:var(--tx)}.nb.active{color:var(--tx);border-left-color:var(--am);background:var(--bg3)}
+.nb .n{font-size:9px;color:var(--tx3);display:block;font-weight:600;letter-spacing:.05em}
+/* page header */
+.ph{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--bd)}
+.ph h2{font-size:18px;font-weight:600;color:var(--tx);margin-bottom:.35rem}
+.ph .meta{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.55rem}
+.badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;display:inline-block}
+.bw{background:var(--bg4);color:var(--tx2);border:1px solid var(--bd2)}
+.be{background:var(--bd-bl);color:var(--bl);border:1px solid #1a3a5c}
+.bm{background:var(--gd);color:var(--gr);border:1px solid #2a4a12}
+.ph p{font-size:12.5px;color:var(--tx2);line-height:1.7}
+/* feature blocks */
+.feat{border:1px solid var(--bd);border-radius:var(--r);margin-bottom:.7rem;overflow:hidden}
+.fh{display:flex;align-items:center;justify-content:space-between;padding:.6rem .95rem;background:var(--bg2);cursor:pointer;user-select:none}
+.fh:hover{background:var(--bg3)}.fh h3{font-size:12px;font-weight:600;color:var(--tx)}
+.fh .fi{font-size:11px;color:var(--tx3);font-family:var(--mn)}
+.tog{font-size:10px;color:var(--tx3)}
+.fb{display:none;border-top:1px solid var(--bd)}.fb.open{display:block}
+/* user story */
+.story{padding:.7rem .95rem;background:var(--gd);border-bottom:1px solid var(--bd);font-size:12px;color:#a8d880;line-height:1.6}
+.story strong{color:var(--gr)}
+/* scenarios */
+.scenarios{padding:.75rem .95rem}
+.sc-block{margin-bottom:1rem;border:1px solid var(--bd);border-radius:6px;overflow:hidden}
+.sc-block:last-child{margin-bottom:0}
+.sc-title{padding:.45rem .85rem;background:var(--bg3);font-size:11px;font-weight:600;color:var(--tx);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:.5rem}
+.sc-tag{font-size:9px;font-weight:500;padding:1px 6px;border-radius:3px}
+.t-happy{background:#1a3a1a;color:var(--gr)}.t-sad{background:var(--rdd);color:var(--rd)}.t-edge{background:var(--ad);color:var(--am)}
+.steps{padding:.55rem .85rem}
+.step{display:flex;gap:.6rem;padding:.22rem 0;font-size:11.5px;color:var(--tx2);line-height:1.5}
+.kw{font-family:var(--mn);font-size:10.5px;min-width:46px;text-align:right;flex-shrink:0}
+.kw.given{color:#9b8ed4}.kw.when{color:var(--bl)}.kw.then{color:var(--gr)}.kw.and{color:var(--tx3)}.kw.but{color:var(--rd)}
+.step-t{flex:1}
+.step-t code{font-family:var(--mn);font-size:10.5px;color:var(--tl);background:var(--bg3);padding:1px 5px;border-radius:3px}
+/* data tables */
+.dt{margin:.4rem 0 .2rem}
+table{width:100%;border-collapse:collapse;font-size:11px;margin:.4rem 0}
+th{text-align:left;padding:.3rem .65rem;background:var(--bg4);color:var(--tx2);font-weight:600;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd)}
+th:last-child{border-right:none}
+td{padding:.3rem .65rem;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);color:var(--tx2)}
+td:last-child{border-right:none}
+td:first-child{font-family:var(--mn);color:var(--tl);font-size:10.5px}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg3)}
+/* rules */
+.rules{padding:.6rem .95rem;border-top:1px solid var(--bd);background:var(--bg2)}
+.rules-title{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tx3);margin-bottom:.4rem}
+.rule{display:flex;gap:.5rem;font-size:11.5px;color:var(--tx2);margin-bottom:.25rem;align-items:flex-start}
+.rule::before{content:"R";font-family:var(--mn);font-size:9px;color:var(--am);background:var(--ad);padding:1px 4px;border-radius:3px;flex-shrink:0;margin-top:2px}
+/* gherkin syntax */
+.gherkin{font-family:var(--mn);font-size:11px;background:var(--cd);border:1px solid var(--bd);border-radius:var(--r);padding:.8rem .95rem;margin:.4rem 0;overflow-x:auto;line-height:1.7}
+.gk-kw{color:#9b8ed4}.gk-scen{color:var(--bl)}.gk-str{color:var(--gr)}.gk-num{color:var(--am)}.gk-cm{color:var(--tx3)}
+/* misc */
+.hidden{display:none}
+.sub{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tx3);margin:.7rem 0 .35rem}
+.note{font-size:12px;color:var(--tx2);line-height:1.65;margin-bottom:.5rem;padding:.5rem .7rem;background:var(--bg3);border-radius:var(--r);border-left:2px solid var(--am)}
+code{font-family:var(--mn);font-size:10.5px;color:var(--tl);background:var(--bg3);padding:1px 5px;border-radius:3px}
+</style></head><body>
+<div class="shell">
+<nav class="sb">
+  <div class="sl"><h1>AI Inference Platform</h1><p>Functional Specs · SpecKit format</p></div>
+  <div class="ss">Phases</div>
+  <button class="nb active" onclick="S('p0',this)"><span class="n">PHASE 00 · Week 1</span>Repo &amp; tooling</button>
+  <button class="nb" onclick="S('p1',this)"><span class="n">PHASE 01 · Weeks 2–3</span>Core inference stack</button>
+  <button class="nb" onclick="S('p2',this)"><span class="n">PHASE 02 · Weeks 4–5</span>Kong API gateway</button>
+  <button class="nb" onclick="S('p3',this)"><span class="n">PHASE 03 · Weeks 6–8</span>Full API surface</button>
+  <button class="nb" onclick="S('p4',this)"><span class="n">PHASE 04 · Weeks 9–11</span>IAM &amp; security</button>
+  <button class="nb" onclick="S('p5',this)"><span class="n">PHASE 05 · Weeks 12–14</span>Guardrails &amp; privacy</button>
+  <button class="nb" onclick="S('p6',this)"><span class="n">PHASE 06 · Weeks 15–17</span>Observability</button>
+  <button class="nb" onclick="S('p7',this)"><span class="n">PHASE 07 · Weeks 18–20</span>Model governance</button>
+  <button class="nb" onclick="S('p8',this)"><span class="n">PHASE 08 · Weeks 21–22</span>Developer portal</button>
+</nav>
+<main class="cn">
+<!-- PHASE 00 -->
+<div id="p0">
+<div class="ph"><h2>Phase 00 — Repository &amp; tooling</h2>
+<div class="meta"><span class="badge bw">Week 1</span><span class="badge be">No services</span></div>
+<p>Establish the project repository, environment conventions, and the Makefile command interface all phases depend on. These specs define the structural contract every developer on the team must be able to rely on.</p></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-00-01 · Project initialisation</h3><div class="fi">P00</div><span class="tog">▾</span></div><div class="fb open">
+<div class="story"><strong>As a</strong> developer joining the project, <strong>I want</strong> a single setup command that prepares my environment, <strong>so that</strong> I can start developing within 5 minutes of cloning the repository.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>First-time setup on a clean Mac</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">OrbStack is installed and running on the developer's Mac</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the repository has been cloned</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">no <code>.env</code> file exists</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the developer runs <code>bash scripts/setup-mac.sh</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the script exits with code 0</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">a <code>.env</code> file is created from <code>.env.example</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the script outputs the message "OK — edit .env then run: make up-core"</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>OrbStack not installed</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">OrbStack is not installed on the Mac</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the developer runs <code>bash scripts/setup-mac.sh</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the script exits with code 1</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the script outputs the message "Install OrbStack: brew install orbstack"</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-edge">edge case</span>Low available memory warning</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">OrbStack is installed and running</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">free system memory is below 3000 MB</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the developer runs <code>bash scripts/setup-mac.sh</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the script outputs a WARNING message about insufficient memory</span></div>
+<div class="step"><span class="kw but">But</span><span class="step-t">the script still exits with code 0 and creates <code>.env</code></span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">setup-mac.sh must never overwrite an existing .env file</div>
+<div class="rule">.env must be present in .gitignore before any commit is made</div>
+<div class="rule">All variable names in .env.example must have empty values — no real secrets committed</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-00-02 · Makefile command interface</h3><div class="fi">P00</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> developer, <strong>I want</strong> all operations to be available as named make targets, <strong>so that</strong> I never need to remember docker compose flags or service names.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Start core services</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the <code>.env</code> file is populated with valid API keys</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the developer runs <code>make up-core</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">all services in the <code>core</code> Docker Compose profile start</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the command exits without error</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Restart a single service</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">services are running</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the developer runs <code>make restart svc=litellm</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">only the litellm container is restarted</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">all other containers continue running undisturbed</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-edge">edge case</span>Missing svc argument</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">services are running</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the developer runs <code>make restart</code> without a <code>svc=</code> argument</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the Makefile prints a usage error message</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">no containers are restarted</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">Every make target must include a ## comment — shown by make help</div>
+<div class="rule">Docker compose must always be invoked via COMPOSE variable to ensure --env-file is applied</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-00-03 · Database initialisation</h3><div class="fi">P00</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform engineer, <strong>I want</strong> all application databases provisioned automatically on first Postgres start, <strong>so that</strong> no manual DB setup is needed.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>First Postgres start creates all databases</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the <code>pg_data</code> volume is empty (first run)</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the postgres container starts</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">databases <code>litellm</code>, <code>keycloak</code>, <code>mlflow</code>, and <code>kong</code> are created</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the platform user has ALL PRIVILEGES on each database</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-edge">edge case</span>Postgres restart with existing volume</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the <code>pg_data</code> volume already has data</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the postgres container restarts</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the init SQL script is NOT re-executed</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">all existing data is preserved</span></div>
+</div></div>
+</div></div></div>
+</div>
+
+<!-- PHASE 01 -->
+<div id="p1" class="hidden">
+<div class="ph"><h2>Phase 01 — Core inference stack</h2>
+<div class="meta"><span class="badge bw">Weeks 2–3</span><span class="badge be">profile: core</span><span class="badge bm">~620 MB</span></div>
+<p>The core inference proxy serving all proprietary LLMs via BYOK. Defines the canonical API surface, caching behaviour, model routing, fallback chains, and cost tracking that all subsequent phases build on.</p></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-01-01 · Model catalogue</h3><div class="fi">P01</div><span class="tog">▾</span></div><div class="fb open">
+<div class="story"><strong>As a</strong> developer, <strong>I want</strong> to query all available models and their capabilities, <strong>so that</strong> I can select the right model for my use case programmatically.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>List all models</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the platform is running</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">a valid API key is provided in the <code>Authorization</code> header</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>GET /v1/models</code> is called</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>200 OK</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response body contains an object with <code>"object": "list"</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the <code>data</code> array contains exactly 11 entries (9 LLMs + 2 embedding models)</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">each entry contains fields: <code>id</code>, <code>owned_by</code>, <code>metadata</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">each entry's <code>metadata</code> contains: <code>tier</code>, <code>context_window</code>, <code>provider</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Missing API key</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the platform is running</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>GET /v1/models</code> is called without an <code>Authorization</code> header</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>401 Unauthorized</code></span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">The catalogue must include models from at least 4 distinct providers: openai, anthropic, google, cohere</div>
+<div class="rule">Every model must have a <code>tier</code> value of either "standard" or "premium"</div>
+<div class="rule">Embedding models must have <code>type: embedding</code> and a <code>dimensions</code> value in metadata</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-01-02 · Synchronous chat completion</h3><div class="fi">P01</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As an</strong> application developer, <strong>I want</strong> to send a chat request and receive a complete response synchronously, <strong>so that</strong> I can build request-response style integrations.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Successful chat completion</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the platform is running</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">a valid API key is provided</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with <code>model</code>, <code>messages</code>, and <code>stream: false</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>200 OK</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response body contains <code>choices[0].message.content</code> as a non-empty string</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response body contains <code>usage.prompt_tokens</code>, <code>usage.completion_tokens</code>, <code>usage.total_tokens</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response body contains <code>choices[0].finish_reason</code> equal to <code>"stop"</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Request with metadata tagging</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a valid API key is provided</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with a <code>metadata</code> object containing <code>team</code> and <code>request_id</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the request is logged with the provided metadata values</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the metadata is associated with the spend record for that request</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Invalid model name</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a valid API key is provided</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with <code>model: "non-existent-model"</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>400 Bad Request</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the error body identifies the invalid model name</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">The <code>messages</code> array must contain at least one message to be a valid request</div>
+<div class="rule">The <code>model</code> field must match a name registered in the model catalogue</div>
+<div class="rule">Requests without <code>stream</code> field default to <code>stream: false</code></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-01-03 · SSE token streaming</h3><div class="fi">P01</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As an</strong> application developer, <strong>I want</strong> to receive tokens as they are generated via Server-Sent Events, <strong>so that</strong> users see responses progressively rather than waiting for full completion.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Streaming chat completion</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a valid API key is provided</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with <code>stream: true</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response <code>Content-Type</code> header is <code>text/event-stream</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response body consists of multiple lines each prefixed with <code>data: </code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">each data line (except the last) is valid JSON containing <code>choices[0].delta.content</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the final data line is exactly <code>data: [DONE]</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the first token arrives within 2000 ms of the request being sent</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-01-04 · Prompt and response caching</h3><div class="fi">P01</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform operator, <strong>I want</strong> identical prompts to return cached responses, <strong>so that</strong> repeat queries incur zero LLM cost and sub-10ms latency.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Cache hit on identical request</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a chat completion request has been made with model <code>gpt-4o-mini</code> and a specific messages array</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the identical request (same model + messages + temperature) is made a second time</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response is returned in under 10 ms</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the Prometheus metric <code>litellm_cache_hit_count</code> increments by 1</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Cache miss on different request</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a chat completion request has been made</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a request is made with the same model but a different <code>messages</code> array</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the request is forwarded to the cloud LLM provider</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the <code>litellm_cache_hit_count</code> metric does NOT increment</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-edge">edge case</span>Cache TTL expiry</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a response has been cached</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the cache TTL of 3600 seconds has elapsed</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the identical request is made again</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the request is forwarded to the cloud LLM provider (cache miss)</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">Cache key is composed of: model + messages array + temperature value</div>
+<div class="rule">Cache TTL is 3600 seconds (configurable via REDIS_TTL env var)</div>
+<div class="rule">Streaming requests (stream: true) are NOT cached</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-01-05 · Model fallback routing</h3><div class="fi">P01</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform operator, <strong>I want</strong> failed requests to automatically retry on a fallback model, <strong>so that</strong> provider outages are invisible to callers.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Primary model failure triggers fallback</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the fallback chain for <code>gpt-4o</code> is configured as <code>[claude-sonnet, gemini-pro]</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the OpenAI API returns a 503 error</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a chat completion request is made with <code>model: gpt-4o</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">LiteLLM retries the request via <code>claude-sonnet</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response is returned successfully</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response body contains the actual model used</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-edge">edge case</span>All fallbacks exhausted</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">all models in the fallback chain are unavailable</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a chat completion request is made</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>503 Service Unavailable</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the error body indicates all providers are unreachable</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">A model is marked as in cooldown after 3 consecutive failures (allowed_fails: 3)</div>
+<div class="rule">Cooldown period is 60 seconds — model is excluded from routing during this window</div>
+<div class="rule">A maximum of 2 retries are attempted before moving to next fallback model</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-01-06 · Cost tracking and spend limits</h3><div class="fi">P01</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform operator, <strong>I want</strong> every request's token cost tracked and attributed to the API key that made it, <strong>so that</strong> I can enforce budgets and produce per-team cost reports.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Spend tracked after request</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a virtual key <code>sk-team-ml-prod</code> has a monthly budget of <code>$50.00</code></span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a chat completion request is made using that key</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t"><code>GET /v1/spend</code> returns updated spend for the key</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the spend increase equals <code>(prompt_tokens × input_rate + completion_tokens × output_rate) / 1000000</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Monthly budget exceeded</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a virtual key has a monthly budget of <code>$0.001</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">at least one request has been made on this key this month</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a further chat completion request is made using that key</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>429 Too Many Requests</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the error body contains <code>"error": "budget_exceeded"</code></span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">Spend is calculated using the provider's published per-token pricing at the time of the request</div>
+<div class="rule">Budget resets on the first day of each calendar month (budget_duration: monthly)</div>
+<div class="rule">GET /v1/spend requires the platform master key, not a team virtual key</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-01-07 · Platform health check</h3><div class="fi">P01</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform operator, <strong>I want</strong> a health endpoint that verifies all configured models are reachable, <strong>so that</strong> load balancers and monitoring tools can determine platform readiness.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>All providers healthy</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">all configured cloud LLM providers are reachable</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>GET /health</code> is called</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>200 OK</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response body contains <code>{"status": "healthy"}</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Health check requires no authentication</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the platform is running</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>GET /health</code> is called with no <code>Authorization</code> header</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>200 OK</code></span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-01-08 · Vector embeddings</h3><div class="fi">P01</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> developer building RAG pipelines, <strong>I want</strong> to generate vector embeddings for text, <strong>so that</strong> I can perform semantic search without managing a separate embedding provider integration.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Generate embeddings for a string</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a valid API key is provided</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/embeddings</code> is called with <code>model: text-embedding-3-small</code> and a non-empty <code>input</code> string</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>200 OK</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t"><code>data[0].embedding</code> is an array of 1536 float values</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t"><code>usage.total_tokens</code> reflects the token count of the input</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>text-embedding-3-large returns 3072 dimensions</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/embeddings</code> is called with <code>model: text-embedding-3-large</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t"><code>data[0].embedding</code> is an array of 3072 float values</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">Embedding requests are NOT cached (distinct from chat completion caching)</div>
+<div class="rule">Embedding models cannot be used with /v1/chat/completions and vice versa</div>
+</div></div></div>
+</div>
+<!-- PHASE 02 -->
+<div id="p2" class="hidden">
+<div class="ph"><h2>Phase 02 — Kong API gateway</h2>
+<div class="meta"><span class="badge bw">Weeks 4–5</span><span class="badge be">profile: core</span></div>
+<p>Kong becomes the sole entry point for all client traffic. LiteLLM is network-isolated. These specs define the edge enforcement contract — every capability listed here is enforced before any request reaches the model proxy.</p></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-02-01 · API key authentication at edge</h3><div class="fi">P02</div><span class="tog">▾</span></div><div class="fb open">
+<div class="story"><strong>As a</strong> platform operator, <strong>I want</strong> every request rejected at the gateway unless it carries a valid API key, <strong>so that</strong> LiteLLM is never exposed to unauthenticated traffic.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Valid key passes gateway</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">Kong is running and a consumer <code>team-ml</code> has key <code>sk-team-ml-abc</code> registered</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a request is sent to <code>POST http://localhost:8080/v1/chat/completions</code> with <code>Authorization: Bearer sk-team-ml-abc</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Kong forwards the request to LiteLLM</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response status is <code>200 OK</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Missing Authorization header</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">Kong is running</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a request is sent to any <code>/v1/*</code> route without an <code>Authorization</code> header</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Kong returns <code>401 Unauthorized</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the request is NOT forwarded to LiteLLM</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Invalid API key</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">Kong is running</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a request is sent with <code>Authorization: Bearer sk-invalid-key-xyz</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Kong returns <code>401 Unauthorized</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Health endpoint bypasses auth</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>GET http://localhost:8080/health</code> is called without any Authorization header</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>200 OK</code></span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">LiteLLM port 4000 must NOT be accessible from the Docker host after Phase 02 (remove port mapping)</div>
+<div class="rule">Kong must be the ONLY entry point — no other service exposes ports to the host except monitoring UIs</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-02-02 · Rate limiting per consumer</h3><div class="fi">P02</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform operator, <strong>I want</strong> each API key limited to a maximum request rate, <strong>so that</strong> no single consumer can saturate the platform and degrade service for others.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Requests within rate limit succeed</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the rate limit for consumer <code>team-ml</code> is 10 requests per second</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">exactly 10 requests are sent within one second using key <code>sk-team-ml-abc</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">all 10 requests are forwarded and return <code>200 OK</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>11th request in same second is throttled</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">10 requests have been sent within the current second</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">an 11th request is sent within the same second</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Kong returns <code>429 Too Many Requests</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response includes a <code>Retry-After</code> header</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-edge">edge case</span>Rate limit is per consumer, not global</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t"><code>team-ml</code> has reached its rate limit</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>team-data</code> sends a request using its own key in the same second</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the <code>team-data</code> request succeeds with <code>200 OK</code></span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">Rate limit thresholds: second=10, minute=300, hour=10000 per consumer key</div>
+<div class="rule">Rate limit counters are stored in Redis — shared across all Kong instances</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-02-03 · Request correlation</h3><div class="fi">P02</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform operator, <strong>I want</strong> every request assigned a unique ID at the gateway, <strong>so that</strong> I can trace a request through all services using a single ID.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>X-Request-ID generated and returned</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t">any authenticated request passes through Kong</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response includes an <code>X-Request-ID</code> header containing a UUID</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the same UUID is forwarded to LiteLLM in the request headers</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-edge">edge case</span>Client-provided X-Request-ID is overridden</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a client sends a request with <code>X-Request-ID: client-provided-id</code></span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">Kong processes the request</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Kong replaces it with a Kong-generated UUID</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-02-04 · Request size enforcement</h3><div class="fi">P02</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform operator, <strong>I want</strong> oversized requests rejected at the gateway, <strong>so that</strong> context-stuffing attacks cannot overload the model proxy.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Request body exceeds 10 MB</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a valid API key is provided</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a request with a body larger than 10 MB is sent to Kong</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Kong returns <code>413 Request Entity Too Large</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the request is NOT forwarded to LiteLLM</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-02-05 · API versioning</h3><div class="fi">P02</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> developer, <strong>I want</strong> the API available at versioned paths, <strong>so that</strong> breaking changes can be introduced in future versions without disrupting existing integrations.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>v1 requests routed and versioned</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t">any successful request passes through Kong via the <code>/v1/*</code> path</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response includes <code>X-API-Version: 1</code> header</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response includes <code>X-Platform: inference-platform</code> header</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>v2 route active and distinct</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>GET http://localhost:8080/v2/models</code> is called with a valid key</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>200 OK</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response includes <code>X-API-Version: 1</code> (same upstream — version header signals route)</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">/v1/* is the stable surface — existing clients using /v1 must never be broken by changes to /v2</div>
+<div class="rule">A deprecated endpoint must return a Deprecation header at least 6 months before removal</div>
+</div></div></div>
+</div>
+
+<!-- PHASE 03 -->
+<div id="p3" class="hidden">
+<div class="ph"><h2>Phase 03 — Full API surface</h2>
+<div class="meta"><span class="badge bw">Weeks 6–8</span><span class="badge be">profile: core</span></div>
+<p>Expand the API beyond basic chat completion to cover all interaction modalities the platform must support. These specs define the complete API contract for batch, multimodal, function calling, structured output, and WebSocket streaming.</p></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-03-01 · Asynchronous batch inference</h3><div class="fi">P03</div><span class="tog">▾</span></div><div class="fb open">
+<div class="story"><strong>As a</strong> data scientist, <strong>I want</strong> to submit thousands of inference requests as a single async job and retrieve results when complete, <strong>so that</strong> I can run large-scale evaluation and annotation pipelines without managing concurrency.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Job submission and status polling</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a valid API key is provided</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/batch/jobs</code> is called with a <code>requests</code> array of 100 items</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>202 Accepted</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response body contains a unique <code>job_id</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response body contains <code>status: "queued"</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t"><code>GET /v1/batch/jobs/{job_id}</code> returns the job status without blocking</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Job completion and result download</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a batch job with 100 items has been submitted</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">sufficient time has elapsed for all items to be processed</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>GET /v1/batch/jobs/{job_id}/results</code> is called</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response is a JSONL stream with exactly 100 lines</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">each line contains <code>custom_id</code>, <code>status</code>, and <code>response</code> fields</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">every <code>custom_id</code> corresponds to an item in the original submission</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-edge">edge case</span>Concurrency limit enforced</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t"><code>MAX_CONCURRENT</code> is set to 4</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a batch job with 100 items is processing</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">at no point are more than 4 LiteLLM requests in flight simultaneously</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-edge">edge case</span>Results for unknown job_id</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>GET /v1/batch/jobs/nonexistent-id/results</code> is called</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>404 Not Found</code></span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">Batch job results are retained for 24 hours after completion, then automatically deleted</div>
+<div class="rule">Each item in a batch job that fails individually is recorded with status "error" — it does not fail the whole job</div>
+<div class="rule">Batch jobs use the redis-queue instance (port 6380) — not the cache Redis (port 6379)</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-03-02 · Multimodal inference (image + text)</h3><div class="fi">P03</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> developer, <strong>I want</strong> to send image and text together in a single request, <strong>so that</strong> I can build vision-capable applications using models that support it.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Image URL with text prompt</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a valid API key is provided</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with model <code>gpt-4o</code> and a message content array containing an <code>image_url</code> item and a <code>text</code> item</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>200 OK</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response contains a text description that references visual content from the image</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Base64-encoded image accepted</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with an <code>image_url</code> value that is a <code>data:image/jpeg;base64,...</code> string</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>200 OK</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Vision request sent to non-vision model</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with model <code>gpt-4o-mini</code> and an <code>image_url</code> content item</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the request is either handled or a clear error is returned indicating the model does not support vision</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">Only models with <code>supports_vision: true</code> in metadata may be used for multimodal requests</div>
+<div class="rule">Both URL-referenced and base64-inline images must be supported</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-03-03 · Function calling (tool use)</h3><div class="fi">P03</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> developer building agentic applications, <strong>I want</strong> the model to select and invoke functions based on the user's intent, <strong>so that</strong> I can build tool-using AI agents using the OpenAI function calling standard.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Model selects a tool</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a valid API key is provided</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with a <code>tools</code> array and <code>tool_choice: auto</code></span></div>
+<div class="step"><span class="kw and">When</span><span class="step-t">the user message clearly requires the provided tool to answer correctly</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response contains <code>choices[0].message.tool_calls</code> as a non-empty array</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t"><code>choices[0].finish_reason</code> equals <code>"tool_calls"</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">each tool call contains <code>id</code>, <code>type: "function"</code>, <code>function.name</code>, and <code>function.arguments</code> (valid JSON string)</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Model responds in text when tool not needed</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with tools provided but the user message does not require a tool</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response contains <code>choices[0].message.content</code> as a non-empty string</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t"><code>choices[0].message.tool_calls</code> is absent or null</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">Only models with <code>supports_functions: true</code> in metadata accept the <code>tools</code> parameter</div>
+<div class="rule"><code>function.arguments</code> in the response must always be a valid JSON-parseable string</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-03-04 · Structured JSON output</h3><div class="fi">P03</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> developer building data extraction pipelines, <strong>I want</strong> the model output guaranteed to be valid JSON matching a schema I provide, <strong>so that</strong> I can parse responses without error handling for malformed output.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Response conforms to provided schema</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a valid API key is provided</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with <code>response_format.type: "json_schema"</code> and a valid JSON schema object</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>200 OK</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t"><code>choices[0].message.content</code> is a valid JSON string</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the parsed JSON validates against the provided schema</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Schema enforcement is consistent across 10 calls</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t">the same structured output request is made 10 times in sequence</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">all 10 responses parse as valid JSON matching the schema</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">no response contains a malformed JSON string</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-03-05 · WebSocket token streaming</h3><div class="fi">P03</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> developer building real-time UIs, <strong>I want</strong> to receive tokens over a persistent WebSocket connection, <strong>so that</strong> I can stream responses to browser clients without server-sent events infrastructure.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>WebSocket connection and token stream</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a valid API key is known</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a WebSocket connection is opened to <code>ws://localhost:8080/ws/v1/chat/completions</code> with the API key in the connection header</span></div>
+<div class="step"><span class="kw and">When</span><span class="step-t">a valid chat completion JSON payload is sent over the WebSocket</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the server sends multiple JSON messages over the WebSocket, each containing a token delta</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the final message signals completion</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the connection remains open for further requests after the first stream completes</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-03-06 · Cache management API</h3><div class="fi">P03</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform operator, <strong>I want</strong> to flush the cache programmatically, <strong>so that</strong> stale responses can be invalidated after a model configuration change.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Flush entire cache</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">at least one response is stored in the Redis cache</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>DELETE /cache/flush</code> is called with the platform master key</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>200 OK</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response body contains <code>keys_deleted</code> with a value greater than 0</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the next identical request to <code>/v1/chat/completions</code> is a cache miss</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Flush cache for a specific model</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>DELETE /cache/flush?model=gpt-4o-mini</code> is called</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">only cache entries for model <code>gpt-4o-mini</code> are removed</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">cache entries for other models remain intact</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Non-admin key rejected</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>DELETE /cache/flush</code> is called with a team virtual key (not master key)</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>403 Forbidden</code></span></div>
+</div></div>
+</div></div></div>
+</div>
+<!-- PHASE 04 -->
+<div id="p4" class="hidden">
+<div class="ph"><h2>Phase 04 — IAM &amp; security</h2>
+<div class="meta"><span class="badge bw">Weeks 9–11</span><span class="badge be">profile: core + auth</span></div>
+<p>Enterprise identity and access management. These specs define who can do what — enforced at the edge by Keycloak-issued JWTs validated at Kong, and fine-grained model-level access controlled by OPA policy decisions.</p></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-04-01 · SSO login and JWT issuance</h3><div class="fi">P04</div><span class="tog">▾</span></div><div class="fb open">
+<div class="story"><strong>As an</strong> enterprise user, <strong>I want</strong> to authenticate via my organisation's identity provider using SSO, <strong>so that</strong> I do not need to manage a separate credential for the inference platform.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>User authenticates and receives JWT</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a user account exists in the <code>inference-platform</code> Keycloak realm</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the user has the <code>model-user</code> role assigned</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the user authenticates via the Keycloak OIDC token endpoint with valid credentials</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Keycloak returns an <code>access_token</code> JWT</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the JWT payload contains a <code>roles</code> claim listing the user's realm roles</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the JWT payload contains a <code>team</code> claim if the user attribute is set</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>JWT accepted by Kong</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a valid JWT has been obtained from Keycloak</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">an API request is made to Kong with <code>Authorization: Bearer {jwt}</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Kong validates the JWT signature against the Keycloak realm's public key</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the request is forwarded to LiteLLM</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Expired JWT rejected</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a JWT whose <code>exp</code> claim is in the past</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a request is made to Kong with the expired JWT</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Kong returns <code>401 Unauthorized</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Tampered JWT rejected</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a valid JWT</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the JWT payload has been modified without re-signing</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a request is made with the tampered JWT</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Kong returns <code>401 Unauthorized</code></span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-04-02 · Multi-factor authentication</h3><div class="fi">P04</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> security administrator, <strong>I want</strong> users to complete a second authentication factor, <strong>so that</strong> platform access is protected even if a password is compromised.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>MFA challenge presented on login</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a user account has TOTP MFA configured in Keycloak</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the user submits valid username and password credentials</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Keycloak presents a TOTP challenge before issuing the access token</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Incorrect TOTP code rejected</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a user has passed the password step and is at the TOTP challenge</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">an incorrect TOTP code is submitted</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Keycloak rejects the login and no access token is issued</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-04-03 · Role-based access control (RBAC)</h3><div class="fi">P04</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform administrator, <strong>I want</strong> access to models governed by user roles defined in the identity provider, <strong>so that</strong> I can grant and revoke access centrally without changing API keys.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>model-user accesses standard-tier model</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a JWT with role <code>model-user</code></span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with <code>model: gpt-4o-mini</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the request is permitted and returns <code>200 OK</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>model-user blocked from premium model</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a JWT with role <code>model-user</code> (not <code>premium-user</code>)</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with <code>model: gpt-4o</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>403 Forbidden</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>premium-user accesses all models</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a JWT with role <code>premium-user</code></span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with <code>model: gpt-4o</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the request is permitted and returns <code>200 OK</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>batch-user accesses batch endpoint only</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a JWT with role <code>batch-user</code> only (no model-user or premium-user)</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/batch/jobs</code> is called</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the request is permitted and returns <code>202 Accepted</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>batch-user blocked from chat completions</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a JWT with role <code>batch-user</code> only</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>403 Forbidden</code></span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">Premium models: gpt-4o, gpt-4.1, o4-mini, claude-sonnet, gemini-pro, command-r-plus</div>
+<div class="rule">Standard models: gpt-4o-mini, claude-haiku, gemini-flash</div>
+<div class="rule">The platform-admin role bypasses all model restrictions and can call any endpoint</div>
+<div class="rule">readonly role can only make GET requests — no inference, no batch</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-04-04 · Attribute-based access control (ABAC) — team-level restrictions</h3><div class="fi">P04</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> security administrator, <strong>I want</strong> to restrict specific teams to a subset of models regardless of their assigned role, <strong>so that</strong> I can enforce cost and compliance policies at the team level.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Finance team accesses approved model</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a JWT with <code>team: finance</code> claim and <code>model-user</code> role</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with <code>model: gpt-4o-mini</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the request is permitted and returns <code>200 OK</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Finance team blocked from unapproved model</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a JWT with <code>team: finance</code> claim and <code>model-user</code> role</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/chat/completions</code> is called with <code>model: o4-mini</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>403 Forbidden</code></span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">Finance team approved models: gpt-4o-mini, claude-haiku, gemini-flash</div>
+<div class="rule">OPA policy is the single source of truth — changes to policy must not require redeployment of any other service</div>
+<div class="rule">OPA policy changes take effect immediately without Kong or LiteLLM restart</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-04-05 · Secret management via Vault</h3><div class="fi">P04</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> security administrator, <strong>I want</strong> all API keys stored in Vault rather than environment files, <strong>so that</strong> secrets are auditable, rotatable, and never committed to source control.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Retrieve team API key from Vault</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">Vault is running and the KV secrets engine is enabled at path <code>platform-keys/</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">team API keys have been written to <code>platform-keys/data/team-ml</code></span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>GET http://localhost:8200/v1/platform-keys/data/team-ml</code> is called with a valid Vault token</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response contains the stored API key values</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Encrypt and decrypt data via transit engine</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the transit secrets engine is enabled with an AES-256 key named <code>inference-data</code></span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a plaintext value is encrypted via <code>POST /v1/transit/encrypt/inference-data</code></span></div>
+<div class="step"><span class="kw and">When</span><span class="step-t">the ciphertext is decrypted via <code>POST /v1/transit/decrypt/inference-data</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the decrypted value matches the original plaintext exactly</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">No plaintext API keys may exist in docker-compose.yml, .env.example, or any committed file</div>
+<div class="rule">Vault token used by services must be a non-root, scoped AppRole token in production deployments</div>
+</div></div></div>
+</div>
+
+<!-- PHASE 05 -->
+<div id="p5" class="hidden">
+<div class="ph"><h2>Phase 05 — Guardrails &amp; privacy</h2>
+<div class="meta"><span class="badge bw">Weeks 12–14</span><span class="badge be">profile: core + safety</span></div>
+<p>Every inference request passes through a pre and post pipeline. These specs define what must be detected, what must be blocked, what must be redacted, and how the audit trail must behave. Privacy compliance is a hard constraint — prompt content is never persisted.</p></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-05-01 · PII detection and redaction</h3><div class="fi">P05</div><span class="tog">▾</span></div><div class="fb open">
+<div class="story"><strong>As a</strong> data protection officer, <strong>I want</strong> personally identifiable information automatically redacted from prompts before they reach any LLM provider, <strong>so that</strong> user data is protected regardless of which application sends it.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Email address redacted before forwarding</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the safety profile is active and Presidio is running</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a request is made with a message containing an email address (e.g. <code>john@example.com</code>)</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the email address is replaced with <code>&lt;REDACTED&gt;</code> before the request reaches LiteLLM</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the audit log entry records <code>pii_redacted: 1</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the audit log entry does NOT contain the original email address</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Multiple PII types redacted in one request</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a message contains an email, a phone number, and a credit card number</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the request is processed by the guardrails service</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">all three entities are redacted</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the audit log records <code>pii_redacted: 3</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>No PII — request passes through unchanged</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a message contains no detectable PII</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the request is processed</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the message content is forwarded to LiteLLM unchanged</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the audit log records <code>pii_redacted: 0</code></span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">PII detection runs on ALL message content fields before any model call — no exceptions</div>
+<div class="rule">Detection confidence threshold for redaction is 0.80 — entities below this score are not redacted</div>
+<div class="rule">Redaction strategy is replace with literal string &lt;REDACTED&gt; — not masking or hashing</div>
+<div class="rule">PII detection latency must not add more than 30ms to the total request latency (measured on local Mac)</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-05-02 · Prompt injection blocking</h3><div class="fi">P05</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform security officer, <strong>I want</strong> adversarial prompts designed to hijack model behaviour automatically blocked, <strong>so that</strong> the platform cannot be used to bypass application-level guardrails.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Prompt injection attempt blocked</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the LLM Guard PromptInjection scanner is active with threshold 0.92</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a request is made with a message designed to override the system prompt or extract instructions</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the guardrails service returns <code>400 Bad Request</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response body contains <code>error: "request_blocked"</code> and a <code>detail</code> field identifying the PromptInjection scanner</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the request is NOT forwarded to LiteLLM</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Legitimate requests not blocked</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a normal, non-adversarial user message</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the request is processed by the PromptInjection scanner</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the scanner returns <code>is_valid: true</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the request proceeds to LiteLLM</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-05-03 · Toxicity and content filtering</h3><div class="fi">P05</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> compliance officer, <strong>I want</strong> both harmful input prompts and harmful model outputs automatically blocked, <strong>so that</strong> the platform cannot be used to generate or process content that violates company policy.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Toxic input blocked before model call</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the Toxicity input scanner is active with threshold 0.85</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a request is made with a message that scores above 0.85 on the toxicity classifier</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the guardrails service returns <code>400 Bad Request</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the request is NOT forwarded to the model</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Toxic model output blocked after model call</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a request produces a model response that scores above 0.80 on the Toxicity output scanner</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the post-inference output scan runs</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the guardrails service returns <code>451 Unavailable For Legal Reasons</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the model response is NOT returned to the client</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-05-04 · Immutable audit trail</h3><div class="fi">P05</div><span class="tog">▾</span></div><div class="story"><strong>As a</strong> compliance auditor, <strong>I want</strong> an immutable record of every inference event, <strong>so that</strong> I can investigate incidents and demonstrate policy compliance without being able to alter the log.</div>
+<div class="fb">
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Audit entry created for every request</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t">any request passes through the guardrails service</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">an audit log entry is written to Loki within 3 seconds</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the entry contains: <code>timestamp</code>, <code>event_type</code>, <code>request_id</code>, <code>key_hash</code>, <code>model</code>, <code>pii_redacted</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Audit entry for blocked request</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a request is blocked by a pre-inference scanner</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">an audit entry with <code>event_type: "BLOCKED_PRE"</code> is written to Loki</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the entry includes the name of the scanner that blocked the request</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Audit entry never contains prompt content</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t">all Loki audit log entries are searched for any portion of a known prompt string</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">zero matching entries are returned</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-edge">edge case</span>Audit write failure does not block inference</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">Loki is unavailable</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a valid inference request is made</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the inference request succeeds and the response is returned to the client</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the audit failure is logged to standard error only</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">Audit log entries are append-only and must not be modifiable after write</div>
+<div class="rule">key_hash is SHA-256 of the raw API key — the raw key is never stored</div>
+<div class="rule">Prompt text, response text, and image data must never appear in any audit log entry</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-05-05 · DSAR — data subject access and deletion</h3><div class="fi">P05</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> data protection officer, <strong>I want</strong> to export or delete all platform data attributable to a specific user on request, <strong>so that</strong> the platform complies with GDPR Article 15 (access) and Article 17 (erasure) obligations.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Export all user metadata</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the requester has the <code>platform-admin</code> role</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/privacy/export</code> is called with a valid <code>user_id</code> and date range</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response contains a <code>download_url</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the downloaded file contains only metadata fields — no prompt or response content</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the download link expires after 7 days</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Delete all user data</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the requester has the <code>platform-admin</code> role</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>DELETE /v1/privacy/delete</code> is called with <code>user_id</code> and <code>confirm: true</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">all records for the user are deleted from Postgres (LiteLLM tables), Redis, and Loki</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response lists each system purged and the count of records deleted</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">a deletion certificate URL is returned</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Non-admin cannot request DSAR</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the requester has the <code>model-user</code> role</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /v1/privacy/export</code> is called</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>403 Forbidden</code></span></div>
+</div></div>
+</div></div></div>
+</div>
+<!-- PHASE 06 -->
+<div id="p6" class="hidden">
+<div class="ph"><h2>Phase 06 — Observability</h2>
+<div class="meta"><span class="badge bw">Weeks 15–17</span><span class="badge be">profile: core + obs</span></div>
+<p>Defines what must be measured, what must trigger an alert, and what must be exported. These specs are the contract between the engineering team and platform operators — every SLO here is observable and alertable.</p></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-06-01 · Metrics collection and dashboards</h3><div class="fi">P06</div><span class="tog">▾</span></div><div class="fb open">
+<div class="story"><strong>As a</strong> platform operator, <strong>I want</strong> real-time metrics on platform performance, model health, and cost visible in a single dashboard, <strong>so that</strong> I can identify and respond to degradation before users are impacted.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>TTFT metric available after first request</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">Prometheus is scraping the LiteLLM /metrics endpoint</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a chat completion request is made</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">within 15 seconds, the Prometheus metric <code>litellm_request_latency_seconds_bucket</code> is updated</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the metric is queryable with label <code>model</code> equal to the model used</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Four dashboards load with no null panels</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">at least 10 requests have been processed</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">each of the 4 Grafana dashboards is loaded in a browser</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">every panel displays data — no panel shows "No data" or an error state</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules — required Grafana panels</div>
+<div class="rule">Dashboard 1 (Platform Overview) must include: TTFT p50, TTFT p95, error rate %, cache hit rate, RPS by model, spend today</div>
+<div class="rule">Dashboard 2 (Model Health) must include: per-model availability status, fallback activations, latency by provider</div>
+<div class="rule">Dashboard 3 (Guardrail Activity) must include: blocks by scanner type, PII entities redacted per hour, block rate %</div>
+<div class="rule">Dashboard 4 (Cost &amp; Budget) must include: monthly spend vs budget gauge, per-team utilisation with colour coding</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-06-02 · SLO alerting</h3><div class="fi">P06</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform operator, <strong>I want</strong> automatic alerts when SLOs are at risk of breach, <strong>so that</strong> I can take corrective action before users experience degraded service.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>HighTTFT alert fires within 5 minutes of breach</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the HighTTFT alert rule is configured with <code>p95 &gt; 400ms for 5 minutes</code></span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">TTFT p95 remains above 400ms continuously for 5 minutes</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Alertmanager fires the HighTTFT alert</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the alert is visible in the Alertmanager UI at <code>localhost:9093</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>HighErrorRate alert fires within 2 minutes</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the HighErrorRate alert is configured with <code>error rate &gt; 5% for 2 minutes</code></span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the 5xx error rate exceeds 5% for 2 consecutive minutes</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Alertmanager fires the HighErrorRate alert with severity <code>critical</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>BudgetWarning alert at 85% utilisation</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a team key has a monthly budget of $50</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the team's spend reaches $42.50 (85% of budget)</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Alertmanager fires a BudgetWarning alert within 1 minute</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-06-03 · Distributed tracing</h3><div class="fi">P06</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> developer debugging a latency issue, <strong>I want</strong> to trace a single request through all services using its X-Request-ID, <strong>so that</strong> I can identify exactly which service or step added latency.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Full trace visible in Jaeger</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">Jaeger and the OTel Collector are running</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a request is made and its <code>X-Request-ID</code> is noted</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the Jaeger UI at <code>localhost:16686</code> shows a trace for that request ID</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the trace contains spans for at minimum: Kong, guardrails service, and LiteLLM</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">each span shows a start time and duration in milliseconds</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-06-04 · SIEM log export</h3><div class="fi">P06</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> security operations engineer, <strong>I want</strong> platform logs and traces exported to our SIEM system in real time, <strong>so that</strong> security events appear in our centralised monitoring without manual log retrieval.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Traces forwarded to SIEM endpoint</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a mock SIEM endpoint is listening on <code>localhost:4319</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t"><code>SIEM_ENDPOINT=http://localhost:4319</code> is set in <code>.env</code></span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">an inference request is processed</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">within 10 seconds, OTLP-formatted trace data arrives at the mock SIEM endpoint</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-edge">edge case</span>SIEM unavailable — export queued</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the SIEM endpoint is unreachable</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">requests continue to be processed</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the OTel Collector queues export events and retries automatically</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">inference requests are NOT affected — they succeed normally</span></div>
+</div></div>
+</div></div></div>
+</div>
+
+<!-- PHASE 07 -->
+<div id="p7" class="hidden">
+<div class="ph"><h2>Phase 07 — Model governance</h2>
+<div class="meta"><span class="badge bw">Weeks 18–20</span><span class="badge be">profile: core + gov</span></div>
+<p>Every model available on the platform must be registered, documented, and versioned. These specs define the lifecycle contract for models — from registration through promotion, monitoring, and rollback.</p></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-07-01 · Model registration and model cards</h3><div class="fi">P07</div><span class="tog">▾</span></div><div class="fb open">
+<div class="story"><strong>As a</strong> platform engineer, <strong>I want</strong> every model in the catalogue registered in MLflow with complete metadata, <strong>so that</strong> stakeholders can understand what each model is, where its data comes from, and what it costs.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Model registered with full model card</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">MLflow is running and connected to the shared Postgres database</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a model is registered via the MLflow client with all required tags</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the model appears in the MLflow UI at <code>localhost:5000</code> under Registered Models</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the model's tags include: <code>provider</code>, <code>tier</code>, <code>context_window</code>, <code>training_data_cutoff</code>, <code>license</code>, <code>pricing_input_per_1m</code>, <code>pricing_output_per_1m</code>, <code>data_residency</code>, <code>gdpr_compliant</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Registration rejected if required tags missing</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t">a model registration is attempted without the <code>training_data_cutoff</code> tag</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the registration script exits with an error indicating missing required tags</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">All 9 LLMs in the catalogue must be registered in MLflow by end of Phase 07</div>
+<div class="rule">Required model card tags: provider, tier, context_window, training_data_cutoff, license, pricing_input_per_1m, pricing_output_per_1m, data_residency, gdpr_compliant</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-07-02 · Model version pinning and promotion</h3><div class="fi">P07</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform engineer, <strong>I want</strong> to promote a model version from Staging to Production and archive the previous Production version, <strong>so that</strong> there is always exactly one Production version per model and a clear history of changes.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>New version promoted to Production</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">model <code>gpt-4o-mini</code> has version 1 in <code>Production</code> stage</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">version 2 is created and <code>transition_model_version_stage</code> is called with <code>archive_existing_versions=True</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">version 2 is in <code>Production</code> stage</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">version 1 is in <code>Archived</code> stage</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">no other version of <code>gpt-4o-mini</code> is in <code>Production</code> stage</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-07-03 · Model rollback</h3><div class="fi">P07</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform engineer, <strong>I want</strong> to roll back a model to its previous Production version, <strong>so that</strong> regressions introduced by a model update can be reversed quickly.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Rollback restores previous version</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">model <code>gpt-4o-mini</code> has version 2 in <code>Production</code> and version 1 in <code>Archived</code></span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the rollback function is called for <code>gpt-4o-mini</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">version 1 is transitioned to <code>Production</code> stage</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">version 2 is transitioned to <code>Archived</code> stage</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-edge">edge case</span>No archived version available</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">model <code>gpt-4o-mini</code> has only version 1 in <code>Production</code> and no <code>Archived</code> versions</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the rollback function is called</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the function prints a message indicating no archived version is available</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">no stage transitions are made</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-07-04 · Bias and fairness monitoring</h3><div class="fi">P07</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> responsible AI officer, <strong>I want</strong> automatic bias and fairness metrics calculated weekly on sampled production responses, <strong>so that</strong> model disparities across demographic groups are detected before they cause harm.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Weekly fairness report produced</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a JSONL sample file with at least 100 labelled response records and demographic attributes</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the fairness check script is run against the sample</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the script completes without error</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">an MLflow run is created with metric <code>demographic_parity_ratio</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the run artifact contains a JSON file with accuracy broken down by demographic group</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Alert when parity ratio below threshold</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the demographic parity ratio threshold is 0.80</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the computed demographic parity ratio for any sensitive attribute is below 0.80</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the script prints a WARNING message identifying the attribute and the computed ratio</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the script exits with a non-zero exit code</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">Fairness monitoring runs weekly — not in the request path</div>
+<div class="rule">Sample file must be JSONL with fields: label, predicted_label, and at least one sensitive_attr_* column</div>
+<div class="rule">A demographic parity ratio of 1.0 means perfect equality; below 0.80 triggers investigation</div>
+</div></div></div>
+</div>
+
+<!-- PHASE 08 -->
+<div id="p8" class="hidden">
+<div class="ph"><h2>Phase 08 — Developer portal</h2>
+<div class="meta"><span class="badge bw">Weeks 21–22</span><span class="badge be">profile: core + portal</span></div>
+<p>The developer portal is the self-service interface for all platform consumers. These specs define what developers must be able to do without raising a support ticket — explore, test, estimate cost, and monitor their own usage.</p></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-08-01 · API explorer and sandbox</h3><div class="fi">P08</div><span class="tog">▾</span></div><div class="fb open">
+<div class="story"><strong>As a</strong> developer new to the platform, <strong>I want</strong> to explore and test all API endpoints in a browser without writing any code, <strong>so that</strong> I can evaluate the platform in under 15 minutes.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Developer sends real request from browser</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">Swagger UI is running at <code>localhost:8090</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the developer has a valid API key</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the developer opens the Swagger UI, enters their key in the Authorize dialog, expands the <code>/v1/chat/completions</code> endpoint, clicks Try It Out, fills in the request body, and clicks Execute</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the actual response from the LLM is displayed inline in the UI</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response time is displayed</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>All endpoints described with schemas</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t">Swagger UI loads</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">all endpoints defined in <code>openapi.yaml</code> are visible</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">every endpoint shows request schema, response schema, and example values</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>OpenAPI spec validates with zero errors</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>swagger-cli validate services/portal/openapi.yaml</code> is run</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the command exits with code 0</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">no validation errors or warnings are reported</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-08-02 · Cost estimation tool</h3><div class="fi">P08</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> developer, <strong>I want</strong> to estimate the cost of a request before sending it, <strong>so that</strong> I can make informed decisions about which model to use without running over my team's budget.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Cost estimate returned with alternatives</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /portal/cost/estimate</code> is called with a model, a sample prompt, and max_tokens</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response contains <code>estimated_cost_usd</code> for the requested model</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the response contains a <code>cheaper_alternatives</code> array listing at least one alternative model</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">each alternative includes <code>model</code>, <code>estimated_cost_usd</code>, and <code>savings_pct</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-edge">edge case</span>Estimate for cheapest model has no alternatives</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>POST /portal/cost/estimate</code> is called with <code>model: gemini-flash</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response contains <code>estimated_cost_usd</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the <code>cheaper_alternatives</code> array is empty</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-08-03 · Live model catalogue</h3><div class="fi">P08</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> developer, <strong>I want</strong> to see all available models with their current health status, capabilities, and pricing, <strong>so that</strong> I can choose the right model without reading internal documentation.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Catalogue reflects live model health</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">all models are reachable</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>GET /portal/catalogue</code> is called</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">all 9 LLMs are listed with <code>status: "healthy"</code></span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Degraded provider reflected in catalogue</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">one provider's models are in cooldown in LiteLLM's router</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>GET /portal/catalogue</code> is called</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the affected models show <code>status: "degraded"</code> or <code>status: "unavailable"</code></span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-title">Business rules</div>
+<div class="rule">Model status in the catalogue is sourced live from GET /v1/router/info — not static config</div>
+<div class="rule">Catalogue must include for each model: id, provider, tier, context_window, supports_vision, supports_functions, supports_json_mode, input/output pricing, avg_ttft_ms, status</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-08-04 · Personal usage dashboard</h3><div class="fi">P08</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> developer, <strong>I want</strong> to see my team's current spend, remaining budget, and usage patterns, <strong>so that</strong> I can manage my team's LLM usage without requesting a report from the platform team.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-happy">happy path</span>Usage data returned for authenticated key</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a team virtual key with a $50 monthly budget</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the team has made at least 10 requests this month</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>GET /portal/my/usage</code> is called with the team key in the Authorization header</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response contains <code>spend_this_month</code>, <code>budget</code>, <code>budget_pct</code>, <code>requests_today</code>, <code>tokens_today</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t"><code>top_models_used</code> lists the top models by request count</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t"><code>daily_spend</code> is an array with one entry per day showing the date and spend</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-sad">failure path</span>Master key cannot access usage dashboard</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the platform master key is used (not a team virtual key)</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>GET /portal/my/usage</code> is called</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the response status is <code>403 Forbidden</code></span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the error body indicates this endpoint is for team virtual keys only</span></div>
+</div></div>
+</div></div></div>
+</div>
+</main></div>
+<script>
+function S(id,btn){document.querySelectorAll('.cn>div').forEach(d=>d.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));btn.classList.add('active')}
+function F(h){var b=h.nextElementSibling,t=h.querySelector('.tog'),o=b.classList.contains('open');b.classList.toggle('open',!o);t.textContent=o?'▾':'▴'}
+</script>
+</body></html>

@@ -1,0 +1,1761 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AI Inference Platform — Mac Spec</title>
+<style>
+:root{--bg:#0f0f0e;--bg2:#161614;--bg3:#1e1e1c;--bg4:#252523;--bd:#2a2a27;--bd2:#363633;--tx:#d0cec5;--tx2:#8a8a82;--tx3:#555550;--cd:#0b0b0a;--gr:#7ab648;--gd:#1a2612;--bl:#5b9bd5;--bd-bl:#0d1c2e;--am:#d4a24a;--ad:#271d09;--rd:#d46b6b;--rdd:#280f0f;--tl:#4ab8a0;--mn:'JetBrains Mono','Fira Code',monospace;--sn:system-ui,sans-serif;--r:8px}
+*{box-sizing:border-box;margin:0;padding:0}html{font-size:13px}body{background:var(--bg);color:var(--tx);font-family:var(--sn);line-height:1.6}
+.shell{display:flex;min-height:100vh}
+.sb{width:215px;min-width:215px;background:var(--bg2);border-right:1px solid var(--bd);position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0}
+.cn{flex:1;padding:1.75rem 2rem;max-width:920px}
+.sl{padding:.8rem 1rem .7rem;border-bottom:1px solid var(--bd);margin-bottom:.4rem}
+.sl h1{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tx2);line-height:1.5}
+.sl p{font-size:10px;color:var(--tx3);margin-top:2px}
+.ss{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);padding:.55rem 1rem .25rem}
+.nb{display:block;width:100%;text-align:left;padding:.42rem 1rem;border:none;background:none;color:var(--tx2);cursor:pointer;font-size:11px;font-family:var(--sn);border-left:2px solid transparent;transition:all .12s}
+.nb:hover{background:var(--bg3);color:var(--tx)}.nb.active{color:var(--tx);border-left-color:var(--am);background:var(--bg3)}
+.nb .n{font-size:9px;color:var(--tx3);display:block;font-weight:600;letter-spacing:.05em}
+.ph{margin-bottom:1.4rem;padding-bottom:1.1rem;border-bottom:1px solid var(--bd)}
+.ph h2{font-size:19px;font-weight:600;color:var(--tx);margin-bottom:.4rem}
+.ph .meta{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.6rem}
+.badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;display:inline-block}
+.bw{background:var(--bg4);color:var(--tx2);border:1px solid var(--bd2)}
+.be{background:var(--bd-bl);color:var(--bl);border:1px solid #1a3a5c}
+.bm{background:var(--gd);color:var(--gr);border:1px solid #243812}
+.ba{background:var(--ad);color:var(--am);border:1px solid #4a3510}
+.ph p{font-size:12.5px;color:var(--tx2);line-height:1.7}
+.card{border:1px solid var(--bd);border-radius:var(--r);margin-bottom:.55rem;overflow:hidden}
+.ch{display:flex;align-items:center;justify-content:space-between;padding:.6rem .95rem;background:var(--bg2);cursor:pointer;user-select:none}
+.ch:hover{background:var(--bg3)}.ch h3{font-size:12px;font-weight:600;color:var(--tx)}
+.tog{font-size:10px;color:var(--tx3)}
+.cb{display:none;border-top:1px solid var(--bd);padding:.9rem 1rem}.cb.open{display:block}
+pre{background:var(--cd);border:1px solid var(--bd);border-radius:var(--r);padding:.85rem .95rem;overflow-x:auto;font-family:var(--mn);font-size:10.5px;line-height:1.6;color:#c2c0b7;max-height:400px;overflow-y:auto;white-space:pre;margin-bottom:.6rem}
+.cw{position:relative;margin-bottom:.6rem}
+.lb{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tx3);background:var(--bg3);border:1px solid var(--bd);border-bottom:none;padding:3px 8px;border-radius:4px 4px 0 0;display:inline-block}
+.cw pre{margin-bottom:0;border-radius:0 var(--r) var(--r) var(--r)}
+.cpb{position:absolute;top:6px;right:7px;padding:2px 8px;font-size:10px;background:var(--bg3);color:var(--tx3);border:1px solid var(--bd2);border-radius:4px;cursor:pointer;font-family:var(--sn)}
+.cpb:hover{color:var(--tx)}
+.ep{border:1px solid var(--bd);border-radius:var(--r);margin-bottom:.4rem;overflow:hidden}
+.eph{display:flex;align-items:center;gap:.55rem;padding:.48rem .85rem;background:var(--bg3);cursor:pointer}
+.eph:hover{background:var(--bg4)}
+.mt{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;min-width:44px;text-align:center}
+.GET{background:var(--gd);color:var(--gr)}.POST{background:var(--bd-bl);color:var(--bl)}.DELETE{background:var(--rdd);color:var(--rd)}
+.ep-p{font-family:var(--mn);font-size:11px;color:var(--tx)}
+.ep-d{font-size:11px;color:var(--tx2);flex:1}
+.epb{display:none;border-top:1px solid var(--bd);padding:.7rem .85rem}.epb.open{display:block}
+.epl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin:.5rem 0 .3rem}.epl:first-child{margin-top:0}
+table{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:.6rem}
+th{text-align:left;padding:.38rem .65rem;background:var(--bg3);color:var(--tx2);font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--bd)}
+td{padding:.36rem .65rem;border-bottom:1px solid var(--bd);color:var(--tx2);line-height:1.4}
+td:first-child{font-family:var(--mn);color:var(--tl);font-size:10.5px}td:nth-child(2){color:var(--am);font-size:10.5px}
+tr:hover td{background:var(--bg3)}
+ul.ok{list-style:none}
+ul.ok li{display:flex;gap:.55rem;padding:.38rem 0;border-bottom:1px solid var(--bd);font-size:12px;color:var(--tx2);align-items:flex-start}
+ul.ok li:last-child{border-bottom:none}ul.ok li::before{content:"✓";color:var(--gr);flex-shrink:0;margin-top:1px}
+.note{font-size:12px;color:var(--tx2);line-height:1.65;margin-bottom:.6rem}
+.sub{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tx3);margin:.8rem 0 .35rem}
+.info{background:var(--bd-bl);border:1px solid #1a3a5c;border-radius:var(--r);padding:.55rem .85rem;font-size:12px;color:var(--bl);margin-bottom:.6rem;line-height:1.55}
+.warn{background:var(--ad);border:1px solid #4a3510;border-radius:var(--r);padding:.55rem .85rem;font-size:12px;color:var(--am);margin-bottom:.6rem;line-height:1.55}
+.mg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.35rem;margin-bottom:.6rem}
+.mc{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:.55rem .7rem}
+.mc .ms{font-size:11px;font-weight:600;color:var(--tx);margin-bottom:1px}
+.mc .mm{font-size:10px;color:var(--gr);font-family:var(--mn)}
+.mc .mr{font-size:10px;color:var(--tx3);line-height:1.35}
+.tc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.35rem;margin-bottom:.6rem}
+.tc-item{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:.55rem .7rem}
+.tc-item .tn{font-size:11px;font-weight:600;color:var(--tx);margin-bottom:1px}
+.tc-item .tv{font-size:10px;color:var(--am);font-family:var(--mn)}
+.tc-item .tr{font-size:10px;color:var(--tx3);line-height:1.35}
+.hidden{display:none}
+code{font-family:var(--mn);font-size:10.5px;color:var(--tl)}
+</style></head><body>
+<div class="shell">
+<nav class="sb">
+  <div class="sl"><h1>AI Inference Platform</h1><p>Mac 8GB · Kong + LiteLLM · BYOK</p></div>
+  <div class="ss">Start here</div>
+  <button class="nb active" onclick="S('ov',this)"><span class="n">OVERVIEW</span>Architecture &amp; memory</button>
+  <div class="ss">Build phases</div>
+  <button class="nb" onclick="S('p0',this)"><span class="n">PHASE 00 · Week 1</span>Repo &amp; tooling</button>
+  <button class="nb" onclick="S('p1',this)"><span class="n">PHASE 01 · Weeks 2–3</span>Core inference stack</button>
+  <button class="nb" onclick="S('p2',this)"><span class="n">PHASE 02 · Weeks 4–5</span>Kong API gateway</button>
+  <button class="nb" onclick="S('p3',this)"><span class="n">PHASE 03 · Weeks 6–8</span>Full API surface</button>
+  <button class="nb" onclick="S('p4',this)"><span class="n">PHASE 04 · Weeks 9–11</span>IAM &amp; security</button>
+  <button class="nb" onclick="S('p5',this)"><span class="n">PHASE 05 · Weeks 12–14</span>Guardrails &amp; privacy</button>
+  <button class="nb" onclick="S('p6',this)"><span class="n">PHASE 06 · Weeks 15–17</span>Observability</button>
+  <button class="nb" onclick="S('p7',this)"><span class="n">PHASE 07 · Weeks 18–20</span>Model governance</button>
+  <button class="nb" onclick="S('p8',this)"><span class="n">PHASE 08 · Weeks 21–22</span>Developer portal</button>
+</nav>
+<main class="cn">
+<!-- OVERVIEW -->
+<div id="ov">
+<div class="ph"><h2>Architecture &amp; memory strategy</h2>
+<div class="meta"><span class="badge be">Mac 8GB · OrbStack</span><span class="badge bm">Proprietary LLMs via BYOK</span><span class="badge ba">Open-source LLMs: Phase 09+</span></div>
+<p>Full inference platform on one Mac using Docker Compose profiles. Kong is the edge gateway. LiteLLM is the model proxy. They work together with no conflict — different layers, different responsibilities. Adding open-source LLMs later is a single new Docker service + config entry.</p>
+</div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Kong + LiteLLM — how they divide responsibilities</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="info">Request flow: Client → Kong :8080 → Guardrail Service :8088 → LiteLLM :4000 → Cloud LLM API<br>Kong owns the edge. LiteLLM owns model routing. No overlap, no conflict.</div>
+<table>
+<tr><th>Capability</th><th>Owner</th><th>Why here</th></tr>
+<tr><td>Rate limiting RPM/RPS</td><td>Kong plugin</td><td>Edge — reject before hitting model proxy</td></tr>
+<tr><td>API key authentication</td><td>Kong key-auth</td><td>Edge — never reaches LiteLLM if invalid</td></tr>
+<tr><td>JWT / SSO token validation</td><td>Kong jwt + Keycloak</td><td>Edge concern</td></tr>
+<tr><td>WAF / request size limit</td><td>Kong plugin</td><td>Edge — network security layer</td></tr>
+<tr><td>X-Request-ID correlation</td><td>Kong plugin</td><td>Attached at edge before any service sees request</td></tr>
+<tr><td>API versioning /v1 /v2</td><td>Kong routes</td><td>Path-based routing at edge</td></tr>
+<tr><td>Token/spend budget limits</td><td>LiteLLM virtual keys</td><td>Needs token counts from provider — model-aware</td></tr>
+<tr><td>Model routing + fallback</td><td>LiteLLM router</td><td>Knows provider health and latency</td></tr>
+<tr><td>BYOK per-team key mapping</td><td>LiteLLM virtual keys</td><td>Maps team key to provider key securely</td></tr>
+<tr><td>Prompt/response caching</td><td>LiteLLM + Redis</td><td>Content-aware — needs to see model + messages</td></tr>
+<tr><td>Cost attribution / spend report</td><td>LiteLLM /v1/spend</td><td>Token-aware calculation</td></tr>
+<tr><td>Traffic routing visibility</td><td>LiteLLM /router/info</td><td>Model health and latency rankings</td></tr>
+</table>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Extensibility — adding open-source models later (Phase 09)</h3><span class="tog">▾</span></div><div class="cb">
+<p class="note">The architecture is designed for this from day one. Adding vLLM on a G2 VM requires only two changes:</p>
+<div class="cw"><div class="lb">docker-compose.g2.yml (new overlay file)</div><pre>services:
+  vllm:
+    image: vllm/vllm-openai:v0.6.3
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]
+    command: ["--model", "meta-llama/Meta-Llama-3.1-8B-Instruct", "--port", "8000"]</pre></div>
+<div class="cw"><div class="lb">Add to services/litellm/config.yaml (one new entry)</div><pre>  - model_name: llama-3.1-8b
+    litellm_params:
+      model: openai/llama-3.1-8b      # openai/ prefix = OpenAI-compatible endpoint
+      api_base: http://vllm:8000/v1
+      api_key: none
+      metadata: {provider: self-hosted, tier: standard}</pre></div>
+<p class="note">Nothing else changes. Kong, guardrails, auth, observability, governance — all work identically with the new model.</p>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Memory budget — 8GB Mac with OrbStack</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="warn">Use OrbStack not Docker Desktop: <code>brew install orbstack</code> — saves ~1.5GB VM overhead vs Docker Desktop</div>
+<pre>macOS + background:   ~2.5 GB
+OrbStack VM:          ~600 MB
+VS Code + browser:    ~500 MB
+─────────────────────────────
+Available for Docker: ~4.4 GB   ← all service groups fit within this</pre>
+<div class="sub">Docker Compose profiles — memory per group</div>
+<div class="mg">
+<div class="mc"><div class="ms">core (always on)</div><div class="mm">~620 MB</div><div class="mr">LiteLLM + Kong + Redis×2 + Postgres</div></div>
+<div class="mc"><div class="ms">obs</div><div class="mm">~630 MB</div><div class="mr">Prometheus + Grafana + Loki + OTel + Alertmanager</div></div>
+<div class="mc"><div class="ms">auth</div><div class="mm">~660 MB</div><div class="mr">Keycloak + OPA + Vault</div></div>
+<div class="mc"><div class="ms">safety</div><div class="mm">~750 MB</div><div class="mr">Presidio×2 + LLM Guard + Guardrails svc</div></div>
+<div class="mc"><div class="ms">gov</div><div class="mm">~380 MB</div><div class="mr">MLflow + Jaeger</div></div>
+<div class="mc"><div class="ms">portal</div><div class="mm">~80 MB</div><div class="mr">Swagger UI + portal backend</div></div>
+</div>
+<p class="note"><strong>core + obs:</strong> ~1.25 GB ✓ &nbsp;<strong>core + auth:</strong> ~1.28 GB ✓ &nbsp;<strong>core + safety:</strong> ~1.37 GB ✓<br><strong>All groups simultaneously:</strong> ~3.12 GB — fits on 8GB Mac with OrbStack ✓<br>Run <code>make stats</code> (docker stats) to monitor live usage per container</p>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Port registry (all 24 services)</h3><span class="tog">▾</span></div><div class="cb">
+<table>
+<tr><th>Service</th><th>Port</th><th>Profile</th><th>Notes</th></tr>
+<tr><td>Kong proxy</td><td>8080</td><td>core</td><td>ALL client traffic — the only public-facing port</td></tr>
+<tr><td>Kong admin API</td><td>8001</td><td>core</td><td>Localhost only — never expose externally</td></tr>
+<tr><td>LiteLLM</td><td>4000</td><td>core</td><td>Internal only after Phase 02 (remove host port mapping)</td></tr>
+<tr><td>Redis (cache)</td><td>6379</td><td>core</td><td>Prompt/response + semantic cache</td></tr>
+<tr><td>Redis (queue)</td><td>6380</td><td>core</td><td>Batch job queue — separate instance</td></tr>
+<tr><td>PostgreSQL</td><td>5432</td><td>core</td><td>Shared: LiteLLM, Keycloak, MLflow, Kong databases</td></tr>
+<tr><td>Prometheus</td><td>9090</td><td>core/obs</td><td>Metrics scraping</td></tr>
+<tr><td>Grafana</td><td>3000</td><td>core/obs</td><td>Dashboards + alerting UI</td></tr>
+<tr><td>Keycloak</td><td>8083</td><td>auth</td><td>SSO / IAM admin UI</td></tr>
+<tr><td>OPA</td><td>8181</td><td>auth/safety</td><td>Policy engine (shared by auth and safety)</td></tr>
+<tr><td>Vault</td><td>8200</td><td>auth</td><td>Secrets management (dev mode locally)</td></tr>
+<tr><td>Presidio analyzer</td><td>5002</td><td>safety</td><td>PII entity detection</td></tr>
+<tr><td>Presidio anonymizer</td><td>5003</td><td>safety</td><td>PII redaction/replacement</td></tr>
+<tr><td>LLM Guard</td><td>8087</td><td>safety</td><td>Prompt injection, toxicity, secrets scanners</td></tr>
+<tr><td>Guardrails service</td><td>8088</td><td>safety</td><td>Pre/post inference pipeline wrapper</td></tr>
+<tr><td>Loki</td><td>3100</td><td>obs</td><td>Log aggregation + immutable audit trail</td></tr>
+<tr><td>OTel Collector HTTP</td><td>4318</td><td>obs</td><td>Telemetry ingestion (HTTP)</td></tr>
+<tr><td>OTel Collector gRPC</td><td>4317</td><td>obs</td><td>Telemetry ingestion (gRPC)</td></tr>
+<tr><td>Alertmanager</td><td>9093</td><td>obs</td><td>Alert routing to Slack / email</td></tr>
+<tr><td>Jaeger UI</td><td>16686</td><td>gov</td><td>Distributed trace viewer</td></tr>
+<tr><td>MLflow</td><td>5000</td><td>gov</td><td>Model registry + experiment tracking</td></tr>
+<tr><td>Batch worker</td><td>8091</td><td>core</td><td>Async batch inference API</td></tr>
+<tr><td>Swagger UI</td><td>8090</td><td>portal</td><td>API explorer + sandbox</td></tr>
+<tr><td>Portal backend</td><td>8092</td><td>portal</td><td>Cost estimator + catalogue API</td></tr>
+</table>
+</div></div>
+</div>
+<!-- PHASE 0 -->
+<div id="p0" class="hidden">
+<div class="ph"><h2>Phase 00 — Repository &amp; tooling</h2>
+<div class="meta"><span class="badge bw">Week 1</span><span class="badge be">Mac only · no Docker yet</span></div>
+<p>Establish the repository structure, Docker Compose profile conventions, .env patterns, and the Makefile that all phases use. Done right here, this prevents technical debt across 8 phases.</p></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Tech components</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="tc-grid">
+<div class="tc-item"><div class="tn">OrbStack</div><div class="tv">brew install orbstack</div><div class="tr">Docker runtime for Mac — 1.5GB lighter than Docker Desktop</div></div>
+<div class="tc-item"><div class="tn">Docker Compose v2</div><div class="tv">bundled with OrbStack</div><div class="tr">Profile-based service grouping for memory control</div></div>
+<div class="tc-item"><div class="tn">Make</div><div class="tv">pre-installed on Mac</div><div class="tr">Single command interface for all developer operations</div></div>
+<div class="tc-item"><div class="tn">direnv (optional)</div><div class="tv">brew install direnv</div><div class="tr">Auto-loads .env when entering project directory</div></div>
+</div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Directory structure</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>inference-platform/
+├── Makefile                           # All commands — never call docker compose directly
+├── .env.example                       # Committed — all variable names, no values
+├── .env                               # Gitignored — real secrets
+├── docker-compose.yml                 # All services with profile tags
+├── docker-compose.override.yml        # Local dev tweaks — gitignored
+│
+├── services/
+│   ├── litellm/
+│   │   ├── config.yaml                # Model catalogue (cloud models)
+│   │   └── Dockerfile                 # Pinned version
+│   ├── kong/Dockerfile
+│   ├── guardrails/
+│   │   ├── main.py                    # FastAPI guardrail pipeline
+│   │   ├── requirements.txt
+│   │   └── Dockerfile
+│   ├── batch-worker/
+│   │   ├── main.py                    # Async batch job processor
+│   │   ├── requirements.txt
+│   │   └── Dockerfile
+│   ├── portal-backend/
+│   │   ├── main.py                    # Cost estimator + catalogue API
+│   │   ├── requirements.txt
+│   │   └── Dockerfile
+│   ├── keycloak/realm-export.json     # Pre-configured realm — auto-imported
+│   ├── opa/policies/inference.rego    # ABAC policy rules
+│   ├── llm-guard/scanners.yml         # Scanner configuration
+│   ├── prometheus/
+│   │   ├── prometheus.yml
+│   │   ├── rules.yml                  # Alert rules
+│   │   └── alertmanager.yml
+│   ├── grafana/
+│   │   ├── provisioning/datasources/
+│   │   ├── provisioning/dashboards/
+│   │   └── dashboards/                # JSON dashboard files (4 dashboards)
+│   ├── loki/loki-config.yml
+│   ├── otel/otel-collector.yml
+│   ├── mlflow/mlflow.env
+│   └── portal/openapi.yaml
+│
+├── scripts/
+│   ├── setup-mac.sh                   # Prereq check + .env creation
+│   ├── init-db.sql                    # Create all Postgres databases
+│   ├── seed-kong.sh                   # Bootstrap Kong consumers + plugins
+│   ├── seed-vault.sh                  # Bootstrap Vault secrets
+│   └── smoke-test.sh                  # Hit all endpoints, assert HTTP codes
+│
+├── tests/
+│   ├── smoke/                         # Per-phase curl-based tests
+│   ├── load/                          # k6 load test scripts
+│   └── contract/                      # Schemathesis API validation
+│
+└── docs/
+    ├── runbook.md
+    ├── ports.md                        # Port registry (source of truth)
+    └── adr/                            # Architecture Decision Records</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>.env.example</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre># ── Cloud LLM API keys (BYOK) ───────────────────────────
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=AIza...
+COHERE_API_KEY=...
+
+# ── LiteLLM ─────────────────────────────────────────────
+LITELLM_MASTER_KEY=sk-platform-master-000
+LITELLM_SALT_KEY=replace-with-32-random-chars
+
+# ── Postgres (shared — all DBs on one instance) ─────────
+POSTGRES_USER=platform
+POSTGRES_PASSWORD=change-in-prod
+
+# ── Keycloak ────────────────────────────────────────────
+KEYCLOAK_ADMIN=admin
+KEYCLOAK_ADMIN_PASSWORD=change-in-prod
+KEYCLOAK_CLIENT_SECRET=change-in-prod
+
+# ── Vault (dev mode) ────────────────────────────────────
+VAULT_TOKEN=root
+
+# ── Grafana ─────────────────────────────────────────────
+GF_SECURITY_ADMIN_PASSWORD=admin
+
+# ── SIEM export (optional) ──────────────────────────────
+SIEM_ENDPOINT=http://localhost:4319
+SIEM_TOKEN=none
+
+# ── Platform ────────────────────────────────────────────
+ENVIRONMENT=local</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Makefile</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>COMPOSE := docker compose --env-file .env
+
+# ── Startup groups ─────────────────────────────────────
+up-core:    ## LiteLLM + Kong + Redis×2 + Postgres + Prometheus + Grafana
+	$(COMPOSE) --profile core up -d
+
+up-obs:     ## core + Loki + OTel + Alertmanager
+	$(COMPOSE) --profile core --profile obs up -d
+
+up-auth:    ## core + Keycloak + OPA + Vault
+	$(COMPOSE) --profile core --profile auth up -d
+
+up-safety:  ## core + Presidio + LLM Guard + Guardrails service
+	$(COMPOSE) --profile core --profile safety up -d
+
+up-gov:     ## core + MLflow + Jaeger
+	$(COMPOSE) --profile core --profile gov up -d
+
+up-portal:  ## core + Swagger UI + portal backend
+	$(COMPOSE) --profile core --profile portal up -d
+
+up-all:     ## All services — watch memory: make stats
+	$(COMPOSE) --profile core --profile obs --profile auth \
+	           --profile safety --profile gov --profile portal up -d
+
+# ── Control ────────────────────────────────────────────
+down:       $(COMPOSE) down
+down-v:     $(COMPOSE) down -v        # DESTRUCTIVE — removes volumes
+restart:    $(COMPOSE) restart $(svc) # make restart svc=litellm
+logs:       $(COMPOSE) logs -f $(svc) # make logs svc=kong
+ps:         $(COMPOSE) ps
+stats:      docker stats              # Live memory per container
+
+# ── Dev helpers ────────────────────────────────────────
+smoke:      bash scripts/smoke-test.sh http://localhost:$(or $(port),8080)
+seed-kong:  bash scripts/seed-kong.sh
+seed-vault: bash scripts/seed-vault.sh</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>scripts/init-db.sql — Postgres multi-database setup</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><pre>-- Runs automatically on first Postgres start
+-- Mount at: /docker-entrypoint-initdb.d/init.sql
+CREATE DATABASE litellm;
+CREATE DATABASE keycloak;
+CREATE DATABASE mlflow;
+CREATE DATABASE kong;
+GRANT ALL PRIVILEGES ON DATABASE litellm  TO platform;
+GRANT ALL PRIVILEGES ON DATABASE keycloak TO platform;
+GRANT ALL PRIVILEGES ON DATABASE mlflow   TO platform;
+GRANT ALL PRIVILEGES ON DATABASE kong     TO platform;</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Acceptance criteria</h3><span class="tog">▾</span></div><div class="cb open">
+<ul class="ok">
+<li>bash scripts/setup-mac.sh exits OK on a Mac with OrbStack installed</li>
+<li>Directory structure matches spec — every listed file and folder present</li>
+<li>.env created from .env.example; .env listed in .gitignore</li>
+<li>make --version and docker info both run without error</li>
+<li>docs/ports.md exists listing all 24 services with ports and profiles</li>
+<li>docs/adr/ADR-001-kong-litellm.md documents why both tools are used</li>
+</ul>
+</div></div>
+</div>
+
+<!-- PHASE 1 -->
+<div id="p1" class="hidden">
+<div class="ph"><h2>Phase 01 — Core inference stack</h2>
+<div class="meta"><span class="badge bw">Weeks 2–3</span><span class="badge be">profile: core</span><span class="badge bm">~620 MB</span></div>
+<p>LiteLLM serving 10 proprietary models via BYOK. Redis caching with TTL. Postgres for LiteLLM state. Prometheus + Grafana for metrics. SSE streaming end-to-end. This is the foundation every other phase builds on.</p></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Tech components</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="tc-grid">
+<div class="tc-item"><div class="tn">LiteLLM Proxy</div><div class="tv">ghcr.io/berriai/litellm:main-v1.52.0</div><div class="tr">Unified model proxy — BYOK, fallback, caching, spend tracking, OpenAI-compatible API</div></div>
+<div class="tc-item"><div class="tn">Redis 7</div><div class="tv">redis:7.2-alpine</div><div class="tr">Prompt/response TTL cache + batch job queue (two separate instances)</div></div>
+<div class="tc-item"><div class="tn">PostgreSQL 16</div><div class="tv">postgres:16-alpine</div><div class="tr">LiteLLM state, virtual keys, spend logs. Shared later by Keycloak, MLflow, Kong</div></div>
+<div class="tc-item"><div class="tn">Prometheus</div><div class="tv">prom/prometheus:v2.49.1</div><div class="tr">Metrics scraping from LiteLLM /metrics endpoint</div></div>
+<div class="tc-item"><div class="tn">Grafana</div><div class="tv">grafana/grafana:10.3.3</div><div class="tr">Dashboards: TTFT, RPS, cache hit rate, spend by model</div></div>
+</div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>docker-compose.yml — core profile</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>version: "3.9"
+services:
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-v1.52.0
+    profiles: [core]
+    ports: ["4000:4000"]          # Removed from host in Phase 02
+    volumes:
+      - ./services/litellm/config.yaml:/app/config.yaml:ro
+    environment:
+      LITELLM_MASTER_KEY:  ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY:    ${LITELLM_SALT_KEY}
+      OPENAI_API_KEY:      ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY:   ${ANTHROPIC_API_KEY}
+      GEMINI_API_KEY:      ${GEMINI_API_KEY}
+      COHERE_API_KEY:      ${COHERE_API_KEY}
+      DATABASE_URL:        postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/litellm
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis:    {condition: service_started}
+    healthcheck:
+      test: ["CMD","curl","-sf","http://localhost:4000/health"]
+      interval: 30s; timeout: 10s; retries: 5; start_period: 20s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.2-alpine
+    profiles: [core]
+    ports: ["6379:6379"]
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save ""
+    restart: unless-stopped
+
+  redis-queue:
+    image: redis:7.2-alpine
+    profiles: [core]
+    ports: ["6380:6379"]
+    command: redis-server --maxmemory 128mb --maxmemory-policy noeviction --save ""
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    profiles: [core]
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB:       platform
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD","pg_isready","-U","${POSTGRES_USER}"]
+      interval: 10s; retries: 5
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.49.1
+    profiles: [core]
+    ports: ["9090:9090"]
+    volumes:
+      - ./services/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.3.3
+    profiles: [core]
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+      GF_PATHS_PROVISIONING:      /etc/grafana/provisioning
+    volumes:
+      - ./services/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    depends_on: [prometheus]
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  grafana_data:</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>services/litellm/config.yaml — full model catalogue</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>model_list:
+  # ── OpenAI ────────────────────────────────────────────────────────
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+      metadata: {provider: openai, tier: premium, context_window: 128000,
+                 supports_vision: true, supports_functions: true}
+
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+      metadata: {provider: openai, tier: standard, context_window: 128000,
+                 supports_functions: true}
+
+  - model_name: gpt-4.1
+    litellm_params:
+      model: openai/gpt-4.1
+      api_key: os.environ/OPENAI_API_KEY
+      metadata: {provider: openai, tier: premium, context_window: 1000000}
+
+  - model_name: o4-mini
+    litellm_params:
+      model: openai/o4-mini
+      api_key: os.environ/OPENAI_API_KEY
+      metadata: {provider: openai, tier: premium, type: reasoning}
+
+  # ── Anthropic ─────────────────────────────────────────────────────
+  - model_name: claude-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+      metadata: {provider: anthropic, tier: premium, context_window: 200000,
+                 supports_functions: true}
+
+  - model_name: claude-haiku
+    litellm_params:
+      model: anthropic/claude-haiku-4-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+      metadata: {provider: anthropic, tier: standard, context_window: 200000}
+
+  # ── Google ────────────────────────────────────────────────────────
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: os.environ/GEMINI_API_KEY
+      metadata: {provider: google, tier: standard, context_window: 1000000,
+                 supports_vision: true}
+
+  - model_name: gemini-pro
+    litellm_params:
+      model: gemini/gemini-2.5-pro
+      api_key: os.environ/GEMINI_API_KEY
+      metadata: {provider: google, tier: premium, context_window: 1000000}
+
+  # ── Cohere ────────────────────────────────────────────────────────
+  - model_name: command-r-plus
+    litellm_params:
+      model: cohere/command-r-plus
+      api_key: os.environ/COHERE_API_KEY
+      metadata: {provider: cohere, tier: premium, context_window: 128000}
+
+  # ── Embeddings ────────────────────────────────────────────────────
+  - model_name: text-embedding-3-small
+    litellm_params:
+      model: openai/text-embedding-3-small
+      api_key: os.environ/OPENAI_API_KEY
+      metadata: {type: embedding, dimensions: 1536}
+
+  - model_name: text-embedding-3-large
+    litellm_params:
+      model: openai/text-embedding-3-large
+      api_key: os.environ/OPENAI_API_KEY
+      metadata: {type: embedding, dimensions: 3072}
+
+# ── Routing ───────────────────────────────────────────────────────────
+router_settings:
+  routing_strategy: latency-based-routing
+  num_retries: 2
+  retry_after: 3
+  cooldown_time: 60
+  allowed_fails: 3
+  fallbacks:
+    - gpt-4o:        [claude-sonnet, gemini-pro]
+    - gpt-4o-mini:   [claude-haiku, gemini-flash]
+    - claude-sonnet: [gpt-4o, gemini-pro]
+    - gemini-flash:  [gpt-4o-mini, claude-haiku]
+  context_window_fallbacks:
+    - gpt-4o-mini: [gpt-4.1]   # gpt-4.1 has 1M context window
+
+# ── Caching ───────────────────────────────────────────────────────────
+litellm_settings:
+  cache: true
+  cache_params:
+    type: redis
+    host: redis
+    port: 6379
+    ttl: 3600
+    namespace: llm_cache
+    supported_call_types: [acompletion, completion]
+  callbacks: [prometheus]
+  json_logs: true
+
+# ── General ───────────────────────────────────────────────────────────
+general_settings:
+  master_key:        os.environ/LITELLM_MASTER_KEY
+  database_url:      os.environ/DATABASE_URL
+  store_model_in_db: true</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Core API contracts</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt POST">POST</span><span class="ep-p">/v1/chat/completions</span><span class="ep-d">Chat completion — all models, sync or stream</span></div><div class="epb">
+<p class="epl">Request</p>
+<pre>{
+  "model": "gpt-4o-mini",
+  "messages": [
+    {"role": "system", "content": "You are a helpful assistant."},
+    {"role": "user",   "content": "Explain transformer attention."}
+  ],
+  "stream": false,
+  "max_tokens": 1024,
+  "temperature": 0.7,
+  "metadata": {"team": "ml-platform", "request_id": "req_abc"}
+}</pre>
+<p class="epl">Response (stream: false)</p>
+<pre>{"id":"chatcmpl-xyz","model":"gpt-4o-mini","choices":[{"message":{"role":"assistant","content":"Transformer attention..."},"finish_reason":"stop"}],"usage":{"prompt_tokens":28,"completion_tokens":180,"total_tokens":208}}</pre>
+<p class="epl">SSE stream (stream: true)</p>
+<pre>data: {"choices":[{"delta":{"role":"assistant"},"finish_reason":null}]}
+data: {"choices":[{"delta":{"content":"Transformer "},"finish_reason":null}]}
+data: {"choices":[{"delta":{"content":"attention "},"finish_reason":null}]}
+data: [DONE]</pre>
+</div></div>
+
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt GET">GET</span><span class="ep-p">/v1/models</span><span class="ep-d">Full model catalogue with metadata</span></div><div class="epb">
+<pre>{"object":"list","data":[{"id":"gpt-4o","owned_by":"openai","metadata":{"tier":"premium","context_window":128000,"supports_vision":true}},{"id":"claude-sonnet","owned_by":"anthropic","metadata":{"tier":"premium","context_window":200000}},{"id":"gemini-flash","owned_by":"google",...}]}</pre>
+</div></div>
+
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt POST">POST</span><span class="ep-p">/v1/embeddings</span><span class="ep-d">Vector embeddings</span></div><div class="epb">
+<p class="epl">Request</p><pre>{"model":"text-embedding-3-small","input":"Your text here","encoding_format":"float"}</pre>
+<p class="epl">Response</p><pre>{"object":"list","data":[{"embedding":[0.012,-0.034,...],"index":0}],"usage":{"prompt_tokens":4}}</pre>
+</div></div>
+
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt GET">GET</span><span class="ep-p">/v1/spend</span><span class="ep-d">Cost report by model and virtual key</span></div><div class="epb">
+<pre>{"total_spend_usd":14.23,"by_model":[{"model":"gpt-4o","spend":10.50,"tokens":350000}],"by_key":[{"key":"sk-team-***","spend":8.20,"budget":50.0,"pct_used":16.4}]}</pre>
+</div></div>
+
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt GET">GET</span><span class="ep-p">/v1/router/info</span><span class="ep-d">Routing state — model health and latency rankings</span></div><div class="epb">
+<pre>{"routing_strategy":"latency-based-routing","models":{"gpt-4o-mini":{"status":"healthy","avg_latency_ms":480,"in_flight":3},"claude-haiku":{"status":"healthy","avg_latency_ms":350,"in_flight":1}},"active_fallbacks":[],"cooldown_models":[]}</pre>
+</div></div>
+
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt POST">POST</span><span class="ep-p">/key/generate</span><span class="ep-d">Generate team virtual key with budget ceiling</span></div><div class="epb">
+<p class="epl">Request (Authorization: Bearer sk-platform-master-000)</p>
+<pre>{
+  "models": ["gpt-4o-mini","claude-haiku","gemini-flash"],
+  "max_budget":            50.0,
+  "budget_duration":       "monthly",
+  "max_parallel_requests": 10,
+  "tpm_limit":             200000,
+  "rpm_limit":             200,
+  "key_alias":             "team-ml-prod",
+  "metadata":              {"team":"ml-platform"},
+  "duration":              "90d"
+}</pre>
+<p class="epl">Response</p>
+<pre>{"key":"sk-team-ml-prod-abc123","key_alias":"team-ml-prod","expires":"2025-08-01T00:00:00Z","max_budget":50.0}</pre>
+</div></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>services/prometheus/prometheus.yml</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><pre>global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: litellm
+    static_configs:
+      - targets: ["litellm:4000"]
+    metrics_path: /metrics
+
+# Key LiteLLM metrics:
+# litellm_request_total{model,status_code}    — RPS by model
+# litellm_request_latency_seconds             — TTFT histogram
+# litellm_llm_api_latency_seconds             — Cloud API round-trip
+# litellm_spend_usd{key_alias}               — per-key spend
+# litellm_cache_hit_count                    — Redis cache hits</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>scripts/smoke-test.sh</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><pre>#!/bin/bash
+BASE=${1:-http://localhost:4000}
+KEY=${LITELLM_MASTER_KEY:-sk-platform-master-000}
+P=0; F=0
+chk(){ s=$(curl -sf -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $KEY" "$2"); [ "$s"="$3" ]&&{ echo "  PASS $1";((P++));}||{ echo "  FAIL $1 got $s";((F++));}; }
+echo "=== Smoke: $BASE ==="
+chk health "$BASE/health" 200
+chk models "$BASE/v1/models" 200
+chk unauth "http://localhost:4000/v1/models" 401
+echo "--- SSE stream ---"
+curl -s "$BASE/v1/chat/completions" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Hi"}],"stream":true,"max_tokens":5}' | head -3
+echo; echo "PASS=$P FAIL=$F"; [ "$F" -eq 0 ]</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Acceptance criteria</h3><span class="tog">▾</span></div><div class="cb open">
+<ul class="ok">
+<li>make up-core starts — make ps shows all 6 services Up and healthy</li>
+<li>GET /health returns {"status":"healthy"}</li>
+<li>GET /v1/models returns 11 entries (9 LLMs + 2 embedding models)</li>
+<li>POST /v1/chat/completions stream:true returns SSE data: lines with token content</li>
+<li>POST /v1/embeddings returns 1536-float array for text-embedding-3-small</li>
+<li>Same prompt sent twice — second returns from Redis cache in under 10ms</li>
+<li>GET /v1/spend returns JSON with spend breakdown after 3 requests</li>
+<li>GET /v1/router/info returns health status for all models</li>
+<li>Prometheus :9090 → Status → Targets shows litellm as UP</li>
+<li>Grafana :3000 shows TTFT and RPS panels populated after first request</li>
+<li>make smoke PASS=3 FAIL=0</li>
+</ul>
+</div></div>
+</div>
+<!-- PHASE 2 -->
+<div id="p2" class="hidden">
+<div class="ph"><h2>Phase 02 — Kong API gateway</h2>
+<div class="meta"><span class="badge bw">Weeks 4–5</span><span class="badge be">profile: core</span><span class="badge bm">+180 MB</span></div>
+<p>Kong sits in front of LiteLLM as the edge gateway. After this phase clients only talk to Kong :8080. LiteLLM :4000 is removed from the host network — internal only. Kong enforces rate limiting, API key auth, request correlation, WAF, and API versioning.</p></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Tech components</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="tc-grid">
+<div class="tc-item"><div class="tn">Kong OSS 3.6</div><div class="tv">kong:3.6</div><div class="tr">Edge gateway: key-auth, rate-limiting, correlation-id, response-transformer, jwt plugins</div></div>
+<div class="tc-item"><div class="tn">Kong DB migration</div><div class="tv">kong:3.6 (migration cmd)</div><div class="tr">One-time DB schema setup against shared Postgres</div></div>
+</div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Add Kong to docker-compose.yml</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>  kong-migration:
+    image: kong:3.6
+    profiles: [core]
+    command: kong migrations bootstrap
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: postgres
+      KONG_PG_USER: ${POSTGRES_USER}
+      KONG_PG_PASSWORD: ${POSTGRES_PASSWORD}
+      KONG_PG_DATABASE: kong
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  kong:
+    image: kong:3.6
+    profiles: [core]
+    ports:
+      - "8080:8000"     # Proxy — ALL client traffic
+      - "8001:8001"     # Admin API — localhost only
+    environment:
+      KONG_DATABASE:          postgres
+      KONG_PG_HOST:           postgres
+      KONG_PG_USER:           ${POSTGRES_USER}
+      KONG_PG_PASSWORD:       ${POSTGRES_PASSWORD}
+      KONG_PG_DATABASE:       kong
+      KONG_PROXY_ACCESS_LOG:  /dev/stdout
+      KONG_ADMIN_ACCESS_LOG:  /dev/stdout
+      KONG_PROXY_ERROR_LOG:   /dev/stderr
+      KONG_ADMIN_LISTEN:      0.0.0.0:8001
+    depends_on: [kong-migration, litellm]
+    healthcheck:
+      test: ["CMD","kong","health"]
+      interval: 30s; retries: 5
+    restart: unless-stopped
+
+# After adding Kong: remove "ports: ['4000:4000']" from litellm service
+# so LiteLLM is only reachable inside the Docker network.</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>scripts/seed-kong.sh — bootstrap via Admin API</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>#!/bin/bash
+# make seed-kong — run once after Kong starts
+ADMIN=http://localhost:8001
+set -euo pipefail
+echo "=== Creating service + routes ==="
+# Service: upstream is LiteLLM (or guardrails in Phase 05)
+curl -sf -X POST "$ADMIN/services" \
+  -d "name=inference-api" -d "url=http://litellm:4000" \
+  -d "connect_timeout=10000" -d "read_timeout=120000" -d "write_timeout=120000"
+
+# Routes
+curl -sf -X POST "$ADMIN/services/inference-api/routes" \
+  -d "name=v1" -d "paths[]=/v1" -d "strip_path=false"
+curl -sf -X POST "$ADMIN/services/inference-api/routes" \
+  -d "name=v2" -d "paths[]=/v2" -d "strip_path=false"
+curl -sf -X POST "$ADMIN/services/inference-api/routes" \
+  -d "name=health" -d "paths[]=/health" -d "strip_path=false"
+
+echo "=== Global plugins ==="
+# Rate limiting: 10/s, 300/min, 10000/hr per consumer key
+curl -sf -X POST "$ADMIN/plugins" \
+  -d "name=rate-limiting" -d "config.second=10" -d "config.minute=300" \
+  -d "config.hour=10000" -d "config.policy=redis" \
+  -d "config.redis_host=redis" -d "config.redis_port=6379" \
+  -d "config.limit_by=consumer"
+
+# Key auth (all routes require Authorization header)
+curl -sf -X POST "$ADMIN/plugins" \
+  -d "name=key-auth" -d "config.key_names[]=Authorization" \
+  -d "config.key_in_header=true"
+
+# Correlation ID — trace every request end-to-end
+curl -sf -X POST "$ADMIN/plugins" \
+  -d "name=correlation-id" -d "config.header_name=X-Request-ID" \
+  -d "config.generator=uuid" -d "config.echo_downstream=true"
+
+# Request size limit (10 MB max)
+curl -sf -X POST "$ADMIN/plugins" \
+  -d "name=request-size-limiting" -d "config.allowed_payload_size=10"
+
+# Response headers
+curl -sf -X POST "$ADMIN/plugins" \
+  -d "name=response-transformer" \
+  -d "config.add.headers[]=X-Platform:inference-platform" \
+  -d "config.add.headers[]=X-API-Version:1"
+
+echo "=== Team consumers ==="
+for team in "team-ml" "team-data" "team-finance" "team-engineering"; do
+  curl -sf -X POST "$ADMIN/consumers" -d "username=$team"
+  K=$(openssl rand -hex 16)
+  curl -sf -X POST "$ADMIN/consumers/$team/key-auth" -d "key=sk-${team}-${K}"
+  echo "  $team → sk-${team}-${K}"
+done
+echo "=== Kong seeded ==="</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Acceptance criteria</h3><span class="tog">▾</span></div><div class="cb open">
+<ul class="ok">
+<li>make seed-kong completes with no errors</li>
+<li>curl localhost:4000 from host → connection refused (LiteLLM internal only)</li>
+<li>Missing Authorization header to :8080 → 401 from Kong</li>
+<li>Invalid key → 401; valid key → 200</li>
+<li>11th request in 1 second → 429 with Retry-After header</li>
+<li>Key with max_budget 0.001 → 429 after first request exceeds budget</li>
+<li>Every response includes X-Request-ID and X-Platform headers</li>
+<li>GET /v1/router/info via Kong :8080 returns routing state</li>
+<li>Fallback test: set one provider key to "invalid" → request automatically routes to fallback model</li>
+</ul>
+</div></div>
+</div>
+
+<!-- PHASE 3 -->
+<div id="p3" class="hidden">
+<div class="ph"><h2>Phase 03 — Full API surface</h2>
+<div class="meta"><span class="badge bw">Weeks 6–8</span><span class="badge be">profile: core</span><span class="badge bm">+120 MB batch worker</span></div>
+<p>Complete the API surface: async batch inference, multimodal image+text, function calling, structured JSON output, WebSocket streaming, and API versioning with backward compatibility. All flow through Kong and respect per-key budgets.</p></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Tech components</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="tc-grid">
+<div class="tc-item"><div class="tn">Batch worker</div><div class="tv">FastAPI + RQ (Redis Queue)</div><div class="tr">Async job submission, status polling, JSONL result download. MAX_CONCURRENT=4 parallel LLM calls</div></div>
+<div class="tc-item"><div class="tn">Redis Queue</div><div class="tv">redis-queue:6380</div><div class="tr">Separate Redis instance for job queue — different eviction policy (noeviction)</div></div>
+<div class="tc-item"><div class="tn">wscat</div><div class="tv">npm install -g wscat</div><div class="tr">WebSocket client for testing ws:// streaming endpoints</div></div>
+</div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Add batch worker to docker-compose.yml</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>  batch-worker:
+    build: ./services/batch-worker
+    profiles: [core]
+    ports: ["8091:8091"]
+    environment:
+      LITELLM_BASE_URL: http://litellm:4000
+      LITELLM_API_KEY:  ${LITELLM_MASTER_KEY}
+      REDIS_QUEUE_URL:  redis://redis-queue:6379
+      MAX_CONCURRENT:   4          # Max parallel LLM calls at once
+      RESULT_TTL:       86400      # Keep results 24h in Redis
+    depends_on: [litellm, redis-queue]
+    restart: unless-stopped</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>API contracts — batch, multimodal, function calling, JSON mode</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt POST">POST</span><span class="ep-p">/v1/batch/jobs</span><span class="ep-d">Submit async batch job — returns immediately</span></div><div class="epb">
+<p class="epl">Request</p>
+<pre>{
+  "model": "gpt-4o-mini",
+  "requests": [
+    {"custom_id":"doc-001","body":{"messages":[{"role":"user","content":"Classify: Great product!"}],"max_tokens":10}},
+    {"custom_id":"doc-002","body":{"messages":[{"role":"user","content":"Classify: Terrible."}],"max_tokens":10}}
+  ],
+  "metadata": {"team":"data-science","priority":"low"}
+}</pre>
+<p class="epl">Response — 202 Accepted</p>
+<pre>{"job_id":"batch_abc123","status":"queued","total_requests":2,"created_at":"2025-05-01T10:00:00Z"}</pre>
+</div></div>
+
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt GET">GET</span><span class="ep-p">/v1/batch/jobs/{job_id}</span><span class="ep-d">Poll job status</span></div><div class="epb">
+<pre>{"job_id":"batch_abc123","status":"running","total_requests":1000,"completed_requests":450,"failed_requests":2,"progress_pct":45.0}</pre>
+</div></div>
+
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt GET">GET</span><span class="ep-p">/v1/batch/jobs/{job_id}/results</span><span class="ep-d">Download JSONL results</span></div><div class="epb">
+<pre>{"custom_id":"doc-001","status":"success","response":{"choices":[{"message":{"content":"positive"}}],"usage":{"total_tokens":15}}}
+{"custom_id":"doc-002","status":"success","response":{"choices":[{"message":{"content":"negative"}}],"usage":{"total_tokens":16}}}</pre>
+</div></div>
+
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt POST">POST</span><span class="ep-p">/v1/chat/completions</span><span class="ep-d">Multimodal — image + text (gpt-4o, gemini models)</span></div><div class="epb">
+<p class="epl">Request</p>
+<pre>{
+  "model": "gpt-4o",
+  "messages": [{
+    "role": "user",
+    "content": [
+      {"type":"image_url","image_url":{"url":"https://example.com/diagram.png","detail":"high"}},
+      {"type":"text","text":"List all components in this architecture diagram."}
+    ]
+  }],
+  "max_tokens": 1024
+}
+// Base64 inline: "url": "data:image/jpeg;base64,/9j/4AAQ..."</pre>
+</div></div>
+
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt POST">POST</span><span class="ep-p">/v1/chat/completions</span><span class="ep-d">Function calling — model decides which tool to call</span></div><div class="epb">
+<p class="epl">Request</p>
+<pre>{
+  "model": "gpt-4o-mini",
+  "messages": [{"role":"user","content":"What is the weather in Dubai?"}],
+  "tools": [{
+    "type": "function",
+    "function": {
+      "name": "get_weather",
+      "description": "Get current weather for a city",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "city":  {"type":"string"},
+          "units": {"type":"string","enum":["celsius","fahrenheit"]}
+        },
+        "required": ["city"]
+      }
+    }
+  }],
+  "tool_choice": "auto"
+}</pre>
+<p class="epl">Response</p>
+<pre>{"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[{"id":"call_abc","type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Dubai\",\"units\":\"celsius\"}"}}]},"finish_reason":"tool_calls"}]}</pre>
+</div></div>
+
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt POST">POST</span><span class="ep-p">/v1/chat/completions</span><span class="ep-d">Structured JSON output — schema enforced</span></div><div class="epb">
+<p class="epl">Request</p>
+<pre>{
+  "model": "gpt-4o-mini",
+  "messages": [
+    {"role":"system","content":"Extract entities. Return JSON only."},
+    {"role":"user","content":"Alice Smith (CFO) signed deal with TechCorp on 2025-03-15."}
+  ],
+  "response_format": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "entity_extraction",
+      "strict": true,
+      "schema": {
+        "type":"object",
+        "properties": {
+          "people":        {"type":"array","items":{"type":"string"}},
+          "organizations": {"type":"array","items":{"type":"string"}},
+          "dates":         {"type":"array","items":{"type":"string"}},
+          "roles":         {"type":"array","items":{"type":"string"}}
+        },
+        "required": ["people","organizations","dates","roles"],
+        "additionalProperties": false
+      }
+    }
+  }
+}</pre>
+<p class="epl">Response — guaranteed valid JSON</p>
+<pre>{"choices":[{"message":{"content":"{\"people\":[\"Alice Smith\"],\"organizations\":[\"TechCorp\"],\"dates\":[\"2025-03-15\"],\"roles\":[\"CFO\"]}"},"finish_reason":"stop"}]}</pre>
+</div></div>
+
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt DELETE">DELETE</span><span class="ep-p">/cache/flush</span><span class="ep-d">Flush cache by model or entirely</span></div><div class="epb">
+<p class="epl">Request</p><pre>DELETE /cache/flush?model=gpt-4o-mini   (omit ?model to flush all)
+Authorization: Bearer sk-platform-master-000</pre>
+<p class="epl">Response</p><pre>{"status":"success","keys_deleted":142}</pre>
+</div></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>API versioning strategy</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><pre># Rule 1: /v1/* is the stable, backward-compatible surface — never break existing clients
+# Rule 2: /v2/* only for breaking changes, announced 6 months ahead
+# Rule 3: Deprecated endpoints return: Deprecation: Sat, 01 Jun 2026 00:00:00 GMT header
+# Rule 4: Model name aliases are version-stable — "gpt-4o-mini" always points to current series
+
+# Kong routes /v1 and /v2 to the same upstream (LiteLLM)
+# LiteLLM handles the routing transparently
+# Kong adds version header to all responses:
+#   X-API-Version: 1  (set in response-transformer plugin config)</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Acceptance criteria</h3><span class="tog">▾</span></div><div class="cb open">
+<ul class="ok">
+<li>POST /v1/batch/jobs with 100 items → job_id returned; GET /results returns all 100 JSONL lines</li>
+<li>Multimodal: POST with image_url to gpt-4o returns text description of a test image</li>
+<li>Function calling: response.choices[0].message.tool_calls present with correct name + arguments</li>
+<li>JSON mode: response content is valid JSON matching schema — 10/10 consecutive requests pass</li>
+<li>WebSocket: wscat -c ws://localhost:8080/ws/v1/chat/completions streams tokens successfully</li>
+<li>DELETE /cache/flush returns keys_deleted count; next identical request shows cache miss</li>
+<li>GET /v1/models and GET /v2/models both return 200 with X-API-Version header</li>
+</ul>
+</div></div>
+</div>
+
+<!-- PHASE 4 -->
+<div id="p4" class="hidden">
+<div class="ph"><h2>Phase 04 — IAM &amp; security</h2>
+<div class="meta"><span class="badge bw">Weeks 9–11</span><span class="badge be">profile: core + auth</span><span class="badge bm">+660 MB</span></div>
+<p>Keycloak for SSO, RBAC, and MFA. OPA for fine-grained ABAC — which team can call which model. Vault for secrets management and BYOK envelope encryption. Kong JWT plugin validates Keycloak tokens at the edge before any request reaches LiteLLM.</p></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Tech components</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="tc-grid">
+<div class="tc-item"><div class="tn">Keycloak 24</div><div class="tv">quay.io/keycloak/keycloak:24.0.3</div><div class="tr">SSO (OIDC/SAML), RBAC roles, TOTP MFA, JWT issuance. Realm imported from JSON on startup</div></div>
+<div class="tc-item"><div class="tn">Open Policy Agent</div><div class="tv">openpolicyagent/opa:0.63.0</div><div class="tr">ABAC policy engine. Rego policies define who can call what model</div></div>
+<div class="tc-item"><div class="tn">HashiCorp Vault</div><div class="tv">hashicorp/vault:1.16.1</div><div class="tr">Dev mode locally. KV v2 for per-team API keys. Transit engine for AES-256 encryption-as-a-service</div></div>
+<div class="tc-item"><div class="tn">Kong JWT plugin</div><div class="tv">built-in to Kong</div><div class="tr">Validates Keycloak-issued JWTs at the Kong edge layer</div></div>
+</div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Add auth services to docker-compose.yml</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.3
+    profiles: [auth]
+    ports: ["8083:8080"]
+    environment:
+      KEYCLOAK_ADMIN:          ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+    command: ["start-dev","--import-realm"]
+    volumes:
+      - ./services/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: unless-stopped
+
+  opa:
+    image: openpolicyagent/opa:0.63.0
+    profiles: [auth, safety]          # shared by auth + safety profiles
+    ports: ["8181:8181"]
+    command: ["run","--server","--log-format=json","/policies"]
+    volumes:
+      - ./services/opa/policies:/policies:ro
+    restart: unless-stopped
+
+  vault:
+    image: hashicorp/vault:1.16.1
+    profiles: [auth]
+    ports: ["8200:8200"]
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID:  ${VAULT_TOKEN}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add: [IPC_LOCK]
+    command: vault server -dev
+    restart: unless-stopped</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>services/keycloak/realm-export.json</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><pre>{
+  "realm": "inference-platform",
+  "enabled": true,
+  "sslRequired": "none",
+  "roles": {
+    "realm": [
+      {"name":"platform-admin","description":"Full platform — all models + admin APIs"},
+      {"name":"model-user",    "description":"Standard-tier models only"},
+      {"name":"premium-user",  "description":"All models including frontier and reasoning"},
+      {"name":"batch-user",    "description":"Batch inference endpoint access"},
+      {"name":"readonly",      "description":"GET requests only — metrics and catalogue"}
+    ]
+  },
+  "clients": [{
+    "clientId": "inference-gateway",
+    "enabled": true,
+    "secret": "${KEYCLOAK_CLIENT_SECRET}",
+    "serviceAccountsEnabled": true,
+    "standardFlowEnabled": true,
+    "redirectUris": ["http://localhost:8080/*","http://localhost:8090/*"],
+    "protocolMappers": [
+      {
+        "name": "team-claim",
+        "protocolMapper": "oidc-usermodel-attribute-mapper",
+        "config": {"user.attribute":"team","claim.name":"team","access.token.claim":"true"}
+      },
+      {
+        "name": "roles-claim",
+        "protocolMapper": "oidc-usermodel-realm-role-mapper",
+        "config": {"claim.name":"roles","access.token.claim":"true","multivalued":"true"}
+      }
+    ]
+  }]
+}</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>services/opa/policies/inference.rego</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>package inference.authz
+import future.keywords.if
+import future.keywords.in
+
+default allow := false
+
+# Platform admins: unrestricted
+allow if { "platform-admin" in input.user.roles }
+
+# Standard users: standard-tier models only
+allow if {
+  "model-user" in input.user.roles
+  input.path == "/v1/chat/completions"
+  not is_premium(input.body.model)
+}
+
+# Premium users: all inference models
+allow if {
+  "premium-user" in input.user.roles
+  input.path == "/v1/chat/completions"
+}
+
+# Batch-specific access
+allow if {
+  "batch-user" in input.user.roles
+  startswith(input.path, "/v1/batch")
+}
+
+# Read-only: catalogue and metrics only
+allow if {
+  "readonly" in input.user.roles
+  input.method == "GET"
+  not startswith(input.path, "/v1/chat")
+  not startswith(input.path, "/v1/batch")
+}
+
+# Team-level model restrictions
+# Finance team: approved low-cost models only
+allow if {
+  "model-user" in input.user.roles
+  input.user.team == "finance"
+  input.body.model in {"gpt-4o-mini","claude-haiku","gemini-flash"}
+}
+
+is_premium(m) if {
+  m in {"gpt-4o","gpt-4.1","o4-mini","claude-sonnet","gemini-pro","command-r-plus"}
+}</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>scripts/seed-vault.sh</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><pre>#!/bin/bash
+VAULT=http://localhost:8200; TOKEN=${VAULT_TOKEN:-root}
+# KV v2 for per-team API keys
+curl -sf -H "X-Vault-Token: $TOKEN" -X POST "$VAULT/v1/sys/mounts/platform-keys" -d '{"type":"kv-v2"}'
+# Transit engine (AES-256 encryption-as-a-service)
+curl -sf -H "X-Vault-Token: $TOKEN" -X POST "$VAULT/v1/sys/mounts/transit" -d '{"type":"transit"}'
+curl -sf -H "X-Vault-Token: $TOKEN" -X POST "$VAULT/v1/transit/keys/inference-data" -d '{"type":"aes256-gcm96"}'
+# Store team API keys (teams use Vault — not .env)
+curl -sf -H "X-Vault-Token: $TOKEN" -X POST "$VAULT/v1/platform-keys/data/team-ml" \
+  -d "{\"data\":{\"openai_key\":\"${OPENAI_API_KEY}\",\"platform_key\":\"sk-team-ml-prod\"}}"
+echo "Vault ready. Test: curl -H 'X-Vault-Token: $TOKEN' $VAULT/v1/transit/encrypt/inference-data -d '{\"plaintext\":\"aGVsbG8=\"}'"</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Acceptance criteria</h3><span class="tog">▾</span></div><div class="cb open">
+<ul class="ok">
+<li>make up-auth — Keycloak at :8083 loads with inference-platform realm and all 5 roles</li>
+<li>Keycloak JWT: valid token → 200; tampered token → 401 at Kong edge</li>
+<li>OPA: model-user calling gpt-4o → 403; premium-user calling gpt-4o → 200</li>
+<li>OPA: finance team calling o4-mini → 403; gpt-4o-mini → 200</li>
+<li>Keycloak TOTP: MFA challenge appears on second authentication factor</li>
+<li>Vault: GET /v1/platform-keys/data/team-ml returns stored API keys</li>
+<li>Vault transit: encrypt → decrypt roundtrip recovers original plaintext</li>
+<li>No plaintext API keys in any committed file or docker-compose.yml</li>
+</ul>
+</div></div>
+</div>
+<!-- PHASE 5 -->
+<div id="p5" class="hidden">
+<div class="ph"><h2>Phase 05 — Guardrails &amp; privacy</h2>
+<div class="meta"><span class="badge bw">Weeks 12–14</span><span class="badge be">profile: core + safety</span><span class="badge bm">+750 MB</span></div>
+<p>Every request passes pre-inference and post-inference pipeline. PII redacted before any model sees it. Immutable audit trail captures all events with no prompt content stored. DSAR export and secure deletion endpoints for privacy compliance. After enabling: update Kong service URL from litellm:4000 to guardrails:8088.</p></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Tech components</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="tc-grid">
+<div class="tc-item"><div class="tn">Microsoft Presidio</div><div class="tv">mcr.microsoft.com/presidio-analyzer<br>mcr.microsoft.com/presidio-anonymizer</div><div class="tr">PII detection for 40+ entity types. Redaction strategies: replace, hash, mask, encrypt</div></div>
+<div class="tc-item"><div class="tn">LLM Guard API</div><div class="tv">ghcr.io/protectai/llm-guard-api:latest</div><div class="tr">Rust-based scanners: PromptInjection, Toxicity, Secrets, BanTopics, Anonymize. &lt;20ms per scan</div></div>
+<div class="tc-item"><div class="tn">Guardrails service</div><div class="tv">Custom FastAPI service</div><div class="tr">Orchestrates pre/post pipeline. Routes through Presidio → LLM Guard → OPA → LiteLLM</div></div>
+<div class="tc-item"><div class="tn">OPA (reused)</div><div class="tv">from auth profile</div><div class="tr">Policy enforcement — which key can call which model (reused from Phase 04)</div></div>
+</div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Add safety services to docker-compose.yml</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>  presidio-analyzer:
+    image: mcr.microsoft.com/presidio-analyzer:latest
+    profiles: [safety]
+    ports: ["5002:3000"]
+    restart: unless-stopped
+
+  presidio-anonymizer:
+    image: mcr.microsoft.com/presidio-anonymizer:latest
+    profiles: [safety]
+    ports: ["5003:3000"]
+    restart: unless-stopped
+
+  llm-guard:
+    image: ghcr.io/protectai/llm-guard-api:latest
+    profiles: [safety]
+    ports: ["8087:8000"]
+    volumes:
+      - ./services/llm-guard/scanners.yml:/config/scanners.yml:ro
+    environment:
+      CONFIG_PATH: /config/scanners.yml
+      LOG_LEVEL: WARNING
+    restart: unless-stopped
+
+  guardrails:
+    build: ./services/guardrails
+    profiles: [safety]
+    ports: ["8088:8088"]
+    environment:
+      PRESIDIO_ANALYZER_URL:   http://presidio-analyzer:3000
+      PRESIDIO_ANONYMIZER_URL: http://presidio-anonymizer:3000
+      LLM_GUARD_URL:           http://llm-guard:8000
+      OPA_URL:                 http://opa:8181
+      LITELLM_URL:             http://litellm:4000
+      LOKI_URL:                http://loki:3100
+    depends_on: [presidio-analyzer, llm-guard, litellm]
+    restart: unless-stopped
+
+# Switching Kong to route through guardrails (run after up-safety):
+# curl -X PATCH http://localhost:8001/services/inference-api -d "url=http://guardrails:8088"</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>services/llm-guard/scanners.yml</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>input_scanners:                  # Run on PROMPT before reaching model
+  - type: PromptInjection
+    threshold: 0.92
+  - type: Anonymize              # Wraps Presidio — PII redaction
+    threshold: 0.80
+  - type: Toxicity
+    threshold: 0.85
+  - type: Secrets                # API keys, passwords, tokens in prompt
+    redact: true
+  - type: BanTopics
+    topics: ["violence","weapons","extremism","self-harm"]
+    threshold: 0.75
+  - type: TokenLimit
+    limit: 4096                  # Block context-stuffing attacks
+
+output_scanners:                 # Run on RESPONSE before returning to client
+  - type: Toxicity
+    threshold: 0.80
+  - type: Relevance              # Response must relate to the prompt
+    threshold: 0.35
+  - type: Sensitive              # Prevent model leaking training-data PII
+    threshold: 0.80</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>services/guardrails/main.py</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><pre>from fastapi import FastAPI, HTTPException, Request
+import httpx, json, hashlib, time
+from datetime import datetime
+
+app = FastAPI()
+
+@app.post("/v1/chat/completions")
+async def guarded_chat(req: Request):
+    body    = await req.json()
+    api_key = req.headers.get("Authorization","").replace("Bearer ","")
+    req_id  = req.headers.get("X-Request-ID","unknown")
+    text    = " ".join(m.get("content","") for m in body.get("messages",[])
+                       if isinstance(m.get("content"), str))
+
+    # ── 1. PII detection and redaction ─────────────────────────────
+    async with httpx.AsyncClient(timeout=10) as c:
+        r = await c.post("http://presidio-analyzer:3000/analyze",
+                         json={"text": text, "language": "en"})
+        entities = r.json()
+    if entities:
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.post("http://presidio-anonymizer:3000/anonymize",
+                             json={"text": text, "analyzer_results": entities,
+                                   "anonymizers":{"DEFAULT":{"type":"replace","new_value":"<REDACTED>"}}})
+            redacted = r.json()["text"]
+        for msg in body.get("messages",[]):
+            if isinstance(msg.get("content"), str):
+                msg["content"] = redacted
+
+    # ── 2. LLM Guard input scan ────────────────────────────────────
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.post("http://llm-guard:8000/analyze/output",
+                         json={"prompt": text, "output": ""})
+        guard = r.json()
+    if not guard.get("is_valid", True):
+        await audit("BLOCKED_PRE", req_id, api_key, body.get("model",""), len(entities))
+        raise HTTPException(400, {"error":"request_blocked","detail":guard.get("scanners_results",{})})
+
+    # ── 3. OPA policy check ────────────────────────────────────────
+    async with httpx.AsyncClient(timeout=5) as c:
+        r = await c.post("http://opa:8181/v1/data/inference/authz",
+                         json={"input":{"path":"/v1/chat/completions","method":"POST",
+                                        "body":{"model":body.get("model")},
+                                        "user":{"roles":["model-user"],"team":"default"}}})
+        if not r.json().get("result",{}).get("allow", False):
+            raise HTTPException(403, {"error":"policy_violation"})
+
+    await audit("REQUEST", req_id, api_key, body.get("model",""), len(entities))
+
+    # ── 4. Forward to LiteLLM ──────────────────────────────────────
+    async with httpx.AsyncClient(timeout=120) as c:
+        resp = await c.post("http://litellm:4000/v1/chat/completions",
+                            json=body, headers={"Authorization":f"Bearer {api_key}"})
+    result = resp.json()
+
+    # ── 5. LLM Guard output scan ───────────────────────────────────
+    output = result.get("choices",[{}])[0].get("message",{}).get("content","")
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.post("http://llm-guard:8000/analyze/output",
+                         json={"prompt": text, "output": output})
+        guard_out = r.json()
+    if not guard_out.get("is_valid", True):
+        await audit("BLOCKED_POST", req_id, api_key, body.get("model",""), 0)
+        raise HTTPException(451, {"error":"response_blocked"})
+
+    await audit("RESPONSE", req_id, api_key, body.get("model",""), 0)
+    return result
+
+async def audit(event, req_id, api_key, model, pii_count):
+    """Immutable audit entry — NEVER stores prompt content."""
+    entry = {
+        "timestamp":    datetime.utcnow().isoformat()+"Z",
+        "event_type":   event,
+        "request_id":   req_id,
+        "key_hash":     hashlib.sha256(api_key.encode()).hexdigest()[:16],
+        "model":        model,
+        "pii_redacted": pii_count
+        # Deliberately omit: prompt text, response text
+    }
+    try:
+        async with httpx.AsyncClient(timeout=3) as c:
+            await c.post("http://loki:3100/loki/api/v1/push",
+                         json={"streams":[{"stream":{"job":"audit","env":"local"},
+                                           "values":[[str(int(time.time()*1e9)),json.dumps(entry)]]}]})
+    except Exception:
+        pass  # Audit failure must never block inference</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>DSAR API contracts</h3><span class="tog">▾</span></div><div class="cb">
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt POST">POST</span><span class="ep-p">/v1/privacy/export</span><span class="ep-d">DSAR — export all metadata for a user (no prompt content)</span></div><div class="epb">
+<p class="epl">Request (requires platform-admin role)</p>
+<pre>{"user_id":"user_abc123","date_range":{"from":"2025-01-01","to":"2025-05-01"},"format":"json"}</pre>
+<p class="epl">Response</p>
+<pre>{"export_id":"dsar_xyz","record_count":1240,"download_url":"/v1/privacy/export/dsar_xyz/download","expires_at":"2025-05-08T10:00:00Z","note":"Metadata only — prompt content is never stored."}</pre>
+</div></div>
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt DELETE">DELETE</span><span class="ep-p">/v1/privacy/delete</span><span class="ep-d">Secure deletion across all storage layers</span></div><div class="epb">
+<p class="epl">Request</p>
+<pre>{"user_id":"user_abc123","confirm":true,"reason":"GDPR Art. 17"}</pre>
+<p class="epl">Response</p>
+<pre>{"status":"completed","systems_purged":["postgres-litellm","redis-cache","loki-audit"],"records_deleted":1240,"certificate_url":"/v1/privacy/delete/del_xyz/certificate"}</pre>
+</div></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Acceptance criteria</h3><span class="tog">▾</span></div><div class="cb open">
+<ul class="ok">
+<li>Request containing an email address: Presidio redacts it; audit log shows pii_redacted:1 — no prompt text in log</li>
+<li>Prompt injection attempt returns 400 with scanner field identifying PromptInjection</li>
+<li>Toxic prompt returns 400 from pre-inference Toxicity scanner</li>
+<li>Every request writes Loki audit entry — queryable by request_id in Grafana Explore</li>
+<li>Search all Loki audit entries for any prompt substring — zero results (never stored)</li>
+<li>POST /v1/privacy/export returns download link with correct record_count</li>
+<li>DELETE /v1/privacy/delete returns systems_purged and records_deleted</li>
+<li>Guardrail overhead under 30ms: measure identical request with/without safety profile</li>
+<li>Inject mock toxic output via test endpoint — guardrails returns 451 Unavailable For Legal Reasons</li>
+</ul>
+</div></div>
+</div>
+
+<!-- PHASE 6 -->
+<div id="p6" class="hidden">
+<div class="ph"><h2>Phase 06 — Observability</h2>
+<div class="meta"><span class="badge bw">Weeks 15–17</span><span class="badge be">profile: core + obs</span><span class="badge bm">+630 MB</span></div>
+<p>Distributed traces, structured log aggregation, alerting, and SIEM/OTEL export. All services instrumented with OpenTelemetry. Four production-grade Grafana dashboards covering platform overview, model health, guardrail activity, and cost.</p></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Tech components</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="tc-grid">
+<div class="tc-item"><div class="tn">Grafana Loki 2.9</div><div class="tv">grafana/loki:2.9.5</div><div class="tr">Append-only structured log store. Audit trail, structured logs from all services</div></div>
+<div class="tc-item"><div class="tn">OTel Collector</div><div class="tv">otel/opentelemetry-collector-contrib:0.97.0</div><div class="tr">Unified telemetry pipeline: traces → Jaeger + SIEM; metrics → Prometheus; logs → Loki</div></div>
+<div class="tc-item"><div class="tn">Alertmanager</div><div class="tv">prom/alertmanager:v0.27.0</div><div class="tr">Alert routing to Slack / email / PagerDuty on SLO breach</div></div>
+<div class="tc-item"><div class="tn">Jaeger</div><div class="tv">jaegertracing/all-in-one:1.55</div><div class="tr">Distributed trace viewer. In-memory storage for local dev (sufficient for debugging)</div></div>
+</div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Add observability services to docker-compose.yml</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>  loki:
+    image: grafana/loki:2.9.5
+    profiles: [obs]
+    ports: ["3100:3100"]
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./services/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.97.0
+    profiles: [obs]
+    ports: ["4317:4317","4318:4318"]
+    volumes:
+      - ./services/otel/otel-collector.yml:/etc/otel/config.yaml:ro
+    command: --config /etc/otel/config.yaml
+    depends_on: [loki, prometheus]
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    profiles: [obs]
+    ports: ["9093:9093"]
+    volumes:
+      - ./services/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.55
+    profiles: [gov]              # in gov profile — heavier, on demand
+    ports: ["16686:16686","14250:14250"]
+    environment:
+      SPAN_STORAGE_TYPE: memory
+    restart: unless-stopped
+
+volumes:
+  loki_data:</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>services/otel/otel-collector.yml</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><pre>receivers:
+  otlp:
+    protocols:
+      grpc: {endpoint: 0.0.0.0:4317}
+      http:  {endpoint: 0.0.0.0:4318}
+
+processors:
+  batch: {timeout: 5s, send_batch_size: 1000}
+  resource:
+    attributes:
+      - {action: insert, key: environment, value: local}
+
+exporters:
+  prometheus:    {endpoint: "0.0.0.0:8889"}
+  loki:          {endpoint: http://loki:3100/loki/api/v1/push}
+  otlp/jaeger:   {endpoint: jaeger:14250, tls: {insecure: true}}
+  otlphttp/siem:
+    endpoint: ${SIEM_ENDPOINT}
+    headers:
+      Authorization: "Bearer ${SIEM_TOKEN}"
+    sending_queue: {enabled: true}
+    retry_on_failure: {enabled: true}
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]; processors: [batch, resource]
+      exporters: [otlp/jaeger, otlphttp/siem]
+    metrics:
+      receivers: [otlp]; processors: [batch]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]; processors: [batch, resource]
+      exporters: [loki, otlphttp/siem]</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Grafana dashboards + alert rules</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><pre>Dashboard 1 — Platform Overview
+  Row: SLOs     → TTFT p50 stat | TTFT p95 stat (RED if >400ms) | Error rate % | Cache hit %
+  Row: Traffic  → RPS by model (stacked) | In-flight requests | 4xx/5xx/guardrail blocks
+  Row: Spend    → Total today | Spend by model pie | Top 5 teams table
+
+Dashboard 2 — Model Health
+  → Availability status grid (green/red per model)
+  → Latency by provider box plot (OpenAI vs Anthropic vs Google vs Cohere)
+  → Fallback activations per hour | Cloud API error rate by provider
+
+Dashboard 3 — Guardrail Activity
+  → Blocks today | Blocks by scanner bar | PII entities redacted/hr | Block rate %
+
+Dashboard 4 — Cost & Budget
+  → Monthly spend vs budget gauge | 30-day trend | Cost per 1K tokens table
+  → Budget utilisation per team key (green <50%, amber <80%, red >80%)
+
+services/prometheus/rules.yml:
+groups:
+  - name: platform
+    rules:
+      - alert: HighTTFT
+        expr: histogram_quantile(0.95, litellm_request_latency_seconds_bucket) > 0.4
+        for: 5m
+        severity: warning
+      - alert: HighErrorRate
+        expr: rate(litellm_request_total{status_code=~"5.."}[5m]) / rate(litellm_request_total[5m]) > 0.05
+        for: 2m
+        severity: critical
+      - alert: BudgetWarning
+        expr: litellm_spend_usd / litellm_max_budget_usd > 0.85
+        for: 1m
+        severity: warning</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Acceptance criteria</h3><span class="tog">▾</span></div><div class="cb open">
+<ul class="ok">
+<li>Loki: audit logs queryable by {job="audit"} and by request_id in Grafana Explore</li>
+<li>Jaeger at :16686 shows full span tree: Kong → guardrails → LiteLLM for a single request</li>
+<li>All 4 Grafana dashboards load with zero null panels after 10 requests</li>
+<li>Alert test: lower TTFT threshold to 1ms → Alertmanager fires within 2 minutes</li>
+<li>OTel export: collector forwards traces to mock SIEM (nc -l 4319) — data arrives on port</li>
+<li>Loki data persists across docker restart (loki_data volume)</li>
+</ul>
+</div></div>
+</div>
+
+<!-- PHASE 7 -->
+<div id="p7" class="hidden">
+<div class="ph"><h2>Phase 07 — Model governance</h2>
+<div class="meta"><span class="badge bw">Weeks 18–20</span><span class="badge be">profile: core + gov</span><span class="badge bm">+380 MB</span></div>
+<p>MLflow model registry for all models in the catalogue — version pinning, model cards with training data provenance, stage promotion, and rollback. Weekly bias/fairness monitoring scripts. AI governance framework document linking policy to tooling.</p></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Tech components</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="tc-grid">
+<div class="tc-item"><div class="tn">MLflow 2.11</div><div class="tv">ghcr.io/mlflow/mlflow:v2.11.3</div><div class="tr">Model registry: version pinning, stage transitions (Staging → Production → Archived), model cards, rollback</div></div>
+<div class="tc-item"><div class="tn">Fairlearn</div><div class="tv">pip install fairlearn</div><div class="tr">Bias/fairness metrics: demographic parity ratio, equalised odds. Weekly offline script on sampled responses</div></div>
+<div class="tc-item"><div class="tn">DVC</div><div class="tv">pip install dvc</div><div class="tr">Data version control for training data provenance metadata in model cards</div></div>
+</div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Add MLflow to docker-compose.yml</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.11.3
+    profiles: [gov]
+    ports: ["5000:5000"]
+    environment:
+      MLFLOW_BACKEND_STORE_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/mlflow
+      MLFLOW_ARTIFACT_ROOT:     /mlflow/artifacts
+    volumes:
+      - mlflow_data:/mlflow/artifacts
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/mlflow
+      --artifact-root /mlflow/artifacts
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: unless-stopped
+
+volumes:
+  mlflow_data:</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Model registration workflow</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>import mlflow
+mlflow.set_tracking_uri("http://localhost:5000")
+client = mlflow.MlflowClient()
+
+# For proprietary models: no weights stored — only config + API metadata
+client.create_registered_model(
+    name="gpt-4o-mini",
+    description="OpenAI GPT-4o mini — primary standard-tier model",
+    tags={
+        "provider":              "openai",
+        "api_model_id":          "gpt-4o-mini",
+        "tier":                  "standard",
+        "context_window":        "128000",
+        "supports_vision":       "true",
+        "supports_functions":    "true",
+        "training_data_cutoff":  "2024-01",
+        "license":               "commercial-api",
+        "pricing_input_per_1m":  "0.15",
+        "pricing_output_per_1m": "0.60",
+        "data_residency":        "us",
+        "gdpr_compliant":        "true",
+    }
+)
+
+version = client.create_model_version(
+    name="gpt-4o-mini",
+    source="api://openai/gpt-4o-mini",   # API pointer — no local weights
+    tags={"activated_date": "2025-05-01", "activated_by": "platform-admin"}
+)
+
+# Promote to Production
+client.transition_model_version_stage(
+    name="gpt-4o-mini", version=version.version,
+    stage="Production", archive_existing_versions=True
+)
+
+# Rollback: find most recent Archived version and promote it
+def rollback(model_name):
+    archived = client.search_model_versions(
+        filter_string=f"name='{model_name}' and current_stage='Archived'",
+        order_by=["creation_timestamp DESC"], max_results=1
+    )
+    if archived:
+        client.transition_model_version_stage(
+            name=model_name, version=archived[0].version, stage="Production"
+        )
+        print(f"Rolled back to version {archived[0].version}")</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>scripts/fairness-check.py — weekly bias monitoring</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><pre>#!/usr/bin/env python3
+# pip install fairlearn pandas mlflow
+# Run weekly: python scripts/fairness-check.py
+import pandas as pd, mlflow
+from fairlearn.metrics import MetricFrame, demographic_parity_ratio
+from sklearn.metrics import accuracy_score
+
+mlflow.set_tracking_uri("http://localhost:5000")
+
+def run_fairness_report(model_name: str, sample_file: str):
+    """
+    sample_file: JSONL with fields:
+      {label, predicted_label, sensitive_attr_gender, sensitive_attr_age_group}
+    Labels are task-specific (e.g. sentiment: positive/negative)
+    """
+    df = pd.read_json(sample_file, lines=True)
+    for attr in ["sensitive_attr_gender", "sensitive_attr_age_group"]:
+        if attr not in df.columns:
+            continue
+        mf = MetricFrame(
+            metrics={"accuracy": accuracy_score},
+            y_true=df["label"], y_pred=df["predicted_label"],
+            sensitive_features=df[attr]
+        )
+        dp = demographic_parity_ratio(
+            df["label"], df["predicted_label"], sensitive_features=df[attr]
+        )
+        print(f"Model: {model_name} | {attr} | DP ratio: {dp:.3f} (threshold: 0.80)")
+        if dp < 0.80:
+            print(f"  ⚠ ALERT: Below threshold for {attr}")
+        with mlflow.start_run(run_name=f"fairness-{model_name}-{attr}"):
+            mlflow.log_params({"model": model_name, "attribute": attr})
+            mlflow.log_metric("demographic_parity_ratio", dp)
+            mlflow.log_metric("overall_accuracy", mf.overall["accuracy"])
+            mlflow.log_dict(mf.by_groups.to_dict(), "accuracy_by_group.json")
+
+if __name__ == "__main__":
+    run_fairness_report("gpt-4o-mini", "data/sample_responses.jsonl")</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Acceptance criteria</h3><span class="tog">▾</span></div><div class="cb open">
+<ul class="ok">
+<li>MLflow UI at :5000 — all 9 models registered with Production stage and full tag metadata</li>
+<li>Model cards include: provider, context_window, training_data_cutoff, pricing, data_residency, gdpr_compliant</li>
+<li>rollback() script executes — previous version shows as Production in MLflow UI</li>
+<li>Fairness script runs on 100-row synthetic sample without error — MLflow shows dp_ratio metric logged</li>
+<li>Alert appears in console when dp_ratio below 0.80 threshold on test data</li>
+<li>docs/adr/ADR-003-governance.md documents model lifecycle policy</li>
+</ul>
+</div></div>
+</div>
+
+<!-- PHASE 8 -->
+<div id="p8" class="hidden">
+<div class="ph"><h2>Phase 08 — Developer portal</h2>
+<div class="meta"><span class="badge bw">Weeks 21–22</span><span class="badge be">profile: core + portal</span><span class="badge bm">+80 MB</span></div>
+<p>Lightweight developer portal: Swagger UI for API exploration and sandbox testing, plus a custom portal backend providing cost estimation, model catalogue with live status, and personal usage dashboard. Backstage is too heavy for 8GB Mac alongside other services — Swagger UI + custom backend achieves the same developer goals.</p></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Tech components</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="tc-grid">
+<div class="tc-item"><div class="tn">Swagger UI 5.12</div><div class="tv">swaggerapi/swagger-ui:v5.12.0</div><div class="tr">API explorer + sandbox. TryItOut enabled — users paste key and send real requests from browser</div></div>
+<div class="tc-item"><div class="tn">Portal backend</div><div class="tv">Custom FastAPI service</div><div class="tr">Cost estimator, live model catalogue, personal usage dashboard. Reads from LiteLLM + Kong Admin API</div></div>
+<div class="tc-item"><div class="tn">OpenAPI 3.1 spec</div><div class="tv">openapi.yaml</div><div class="tr">Hand-maintained spec covering all endpoints. Validated with swagger-cli before each release</div></div>
+</div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Add portal services to docker-compose.yml</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>  swagger-ui:
+    image: swaggerapi/swagger-ui:v5.12.0
+    profiles: [portal]
+    ports: ["8090:8080"]
+    environment:
+      SWAGGER_JSON_URL: http://localhost:8090/openapi.yaml
+      BASE_URL: /
+      DEEP_LINKING: "true"
+      DISPLAY_REQUEST_DURATION: "true"
+      TRY_IT_OUT_ENABLED: "true"
+    volumes:
+      - ./services/portal/openapi.yaml:/usr/share/nginx/html/openapi.yaml:ro
+    restart: unless-stopped
+
+  portal-backend:
+    build: ./services/portal-backend
+    profiles: [portal]
+    ports: ["8092:8092"]
+    environment:
+      LITELLM_URL:    http://litellm:4000
+      LITELLM_KEY:    ${LITELLM_MASTER_KEY}
+      KONG_ADMIN_URL: http://kong:8001
+    depends_on: [litellm, kong]
+    restart: unless-stopped</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Portal backend API contracts</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt POST">POST</span><span class="ep-p">/portal/cost/estimate</span><span class="ep-d">Estimate cost before sending a request</span></div><div class="epb">
+<p class="epl">Request</p>
+<pre>{"model":"gpt-4o","prompt":"Explain transformer attention in 500 words","max_tokens":600}</pre>
+<p class="epl">Response</p>
+<pre>{
+  "model":                  "gpt-4o",
+  "estimated_input_tokens": 12,
+  "max_output_tokens":      600,
+  "estimated_cost_usd":     0.00366,
+  "pricing": {"input_per_1m": 2.50, "output_per_1m": 10.00},
+  "cheaper_alternatives": [
+    {"model":"gpt-4o-mini","estimated_cost_usd":0.00037,"savings_pct":90},
+    {"model":"gemini-flash","estimated_cost_usd":0.00008,"savings_pct":98}
+  ]
+}</pre>
+</div></div>
+
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt GET">GET</span><span class="ep-p">/portal/catalogue</span><span class="ep-d">Live model catalogue with capabilities, pricing, and health</span></div><div class="epb">
+<pre>{"models":[{"id":"gpt-4o","provider":"openai","tier":"premium","context_window":128000,"supports_vision":true,"supports_functions":true,"supports_json_mode":true,"input_cost_per_1m":2.50,"output_cost_per_1m":10.00,"avg_ttft_ms":820,"status":"healthy"},{"id":"gpt-4o-mini",...},{"id":"claude-sonnet",...}]}</pre>
+</div></div>
+
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt GET">GET</span><span class="ep-p">/portal/my/usage</span><span class="ep-d">Personal usage and budget for authenticated key</span></div><div class="epb">
+<pre>{"key_alias":"team-ml-prod","spend_this_month":12.34,"budget":50.00,"budget_pct":24.7,"requests_today":142,"tokens_today":48000,"top_models_used":["gpt-4o-mini","claude-haiku"],"daily_spend":[{"date":"2025-05-01","spend":1.20},{"date":"2025-05-02","spend":2.14}]}</pre>
+</div></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>OpenAPI spec excerpt — services/portal/openapi.yaml</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><pre>openapi: "3.1.0"
+info:
+  title: AI Inference Platform API
+  version: "1.0.0"
+  description: Unified access to proprietary LLMs via BYOK. All requests require Authorization header.
+
+servers:
+  - url: http://localhost:8080
+    description: Local development (Kong gateway :8080)
+
+security:
+  - ApiKeyAuth: []
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: "Format: Bearer sk-your-key"
+
+paths:
+  /v1/chat/completions:
+    post:
+      summary: Chat completion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model, messages]
+              properties:
+                model:
+                  type: string
+                  enum: [gpt-4o,gpt-4o-mini,gpt-4.1,o4-mini,claude-sonnet,
+                          claude-haiku,gemini-flash,gemini-pro,command-r-plus]
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    required: [role, content]
+                    properties:
+                      role: {type: string, enum: [system,user,assistant]}
+                      content: {type: string}
+                stream:      {type: boolean, default: false}
+                max_tokens:  {type: integer, default: 1024}
+                temperature: {type: number, minimum: 0, maximum: 2}
+      responses:
+        "200": {description: Completion response}
+        "400": {description: Blocked by guardrail}
+        "401": {description: Invalid or missing API key}
+        "429": {description: Rate limit or budget exceeded}</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Acceptance criteria</h3><span class="tog">▾</span></div><div class="cb open">
+<ul class="ok">
+<li>Swagger UI at :8090 loads all endpoints with schemas — Try It Out works for /v1/chat/completions</li>
+<li>User pastes API key in Swagger UI, sends request, receives real response inline</li>
+<li>POST /portal/cost/estimate returns cost breakdown with cheaper alternatives</li>
+<li>GET /portal/catalogue returns all 9 models with live status from /v1/router/info</li>
+<li>GET /portal/my/usage returns spend and budget for a valid API key</li>
+<li>swagger-cli validate services/portal/openapi.yaml returns 0 errors</li>
+<li>docs/runbook.md covers all 8 phases with startup commands and port references</li>
+<li>All 52 original capability requirements traced to a phase and verified</li>
+</ul>
+</div></div>
+</div>
+</main></div>
+<script>
+function S(id,btn){document.querySelectorAll('.cn>div').forEach(d=>d.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));btn.classList.add('active')}
+function T(h){var b=h.nextElementSibling,t=h.querySelector('.tog'),o=b.classList.contains('open');b.classList.toggle('open',!o);t.textContent=o?'▾':'▴'}
+function E(h){h.nextElementSibling.classList.toggle('open')}
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('pre').forEach(function(pre){
+    var w=pre.closest('.cw')||pre.parentElement;
+    if(w.style!==undefined)w.style.position='relative';
+    var b=document.createElement('button');
+    b.className='cpb';b.textContent='copy';
+    b.onclick=function(){navigator.clipboard.writeText(pre.textContent).then(function(){b.textContent='copied';setTimeout(function(){b.textContent='copy'},1400)})};
+    (pre.closest('.cw')||pre.parentElement).appendChild(b);
+  });
+});
+</script>
+</body></html>

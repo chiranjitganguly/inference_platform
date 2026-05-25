@@ -1,0 +1,1259 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AI Inference Platform — Phase 09 &amp; 10 Additions</title>
+<style>
+:root{--bg:#0f0f0e;--bg2:#161614;--bg3:#1e1e1c;--bg4:#252523;--bd:#2a2a27;--bd2:#363633;--tx:#d0cec5;--tx2:#8a8a82;--tx3:#555550;--cd:#0b0b0a;--gr:#7ab648;--gd:#192410;--bl:#5b9bd5;--bld:#0c1a2a;--am:#d4a24a;--ad:#271d09;--rd:#d46b6b;--rdd:#280f0f;--tl:#4ab8a0;--tld:#081a16;--pu:#9b8ed4;--pud:#181528;--mn:'JetBrains Mono','Fira Code',monospace;--sn:system-ui,sans-serif;--r:8px}
+*{box-sizing:border-box;margin:0;padding:0}html{font-size:13px}body{background:var(--bg);color:var(--tx);font-family:var(--sn);line-height:1.6}
+.shell{display:flex;min-height:100vh}
+.sb{width:220px;min-width:220px;background:var(--bg2);border-right:1px solid var(--bd);position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0}
+.cn{flex:1;padding:2rem;max-width:940px}
+.sl{padding:.8rem 1rem .7rem;border-bottom:1px solid var(--bd);margin-bottom:.4rem}
+.sl h1{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tx2);line-height:1.45}
+.sl p{font-size:10px;color:var(--tx3);margin-top:2px}
+.ss{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);padding:.55rem 1rem .25rem}
+.nb{display:block;width:100%;text-align:left;padding:.4rem 1rem;border:none;background:none;color:var(--tx2);cursor:pointer;font-size:11px;font-family:var(--sn);border-left:2px solid transparent;transition:all .12s}
+.nb:hover{background:var(--bg3);color:var(--tx)}.nb.active{color:var(--tx);border-left-color:var(--am);background:var(--bg3)}
+.nb .n{font-size:9px;color:var(--tx3);display:block;font-weight:600;letter-spacing:.05em}
+/* tabs */
+.tabs{display:flex;border-bottom:1px solid var(--bd);margin-bottom:1.5rem}
+.tab{padding:.6rem 1.25rem;font-size:12px;font-weight:500;border:none;background:none;color:var(--tx2);cursor:pointer;border-bottom:2px solid transparent;transition:all .12s;font-family:var(--sn)}
+.tab:hover{color:var(--tx)}.tab.active{color:var(--tx);border-bottom-color:var(--am)}
+.tab-pane{display:none}.tab-pane.active{display:block}
+/* page header */
+.ph{margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--bd)}
+.ph h2{font-size:18px;font-weight:600;color:var(--tx);margin-bottom:.35rem}
+.ph .meta{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.55rem}
+.badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;display:inline-block}
+.bw{background:var(--bg4);color:var(--tx2);border:1px solid var(--bd2)}
+.be{background:var(--bld);color:var(--bl);border:1px solid #1a3a5c}
+.bm{background:var(--gd);color:var(--gr);border:1px solid #2a4a12}
+.bp{background:var(--pud);color:var(--pu);border:1px solid #2a2450}
+.bt{background:var(--tld);color:var(--tl);border:1px solid #0a2820}
+.ph p{font-size:12.5px;color:var(--tx2);line-height:1.7}
+/* cards */
+.card{border:1px solid var(--bd);border-radius:var(--r);margin-bottom:.6rem;overflow:hidden}
+.ch{display:flex;align-items:center;justify-content:space-between;padding:.6rem .95rem;background:var(--bg2);cursor:pointer;user-select:none}
+.ch:hover{background:var(--bg3)}.ch h3{font-size:12px;font-weight:600;color:var(--tx)}
+.tog{font-size:10px;color:var(--tx3)}
+.cb{display:none;border-top:1px solid var(--bd);padding:.9rem 1rem}.cb.open{display:block}
+/* code */
+pre{background:var(--cd);border:1px solid var(--bd);border-radius:var(--r);padding:.85rem .95rem;overflow-x:auto;font-family:var(--mn);font-size:10.5px;line-height:1.6;color:#c2c0b7;max-height:420px;overflow-y:auto;white-space:pre;margin-bottom:.6rem}
+.cw{position:relative;margin-bottom:.6rem}
+.lbl{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tx3);background:var(--bg3);border:1px solid var(--bd);border-bottom:none;padding:3px 8px;border-radius:4px 4px 0 0;display:inline-block}
+.cw pre{margin-bottom:0;border-radius:0 var(--r) var(--r) var(--r)}
+.cpb{position:absolute;top:6px;right:7px;padding:2px 8px;font-size:10px;background:var(--bg3);color:var(--tx3);border:1px solid var(--bd2);border-radius:4px;cursor:pointer;font-family:var(--sn)}
+.cpb:hover{color:var(--tx)}
+/* tech component grid */
+.tcg{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:.4rem;margin-bottom:.75rem}
+.tc{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:.6rem .75rem}
+.tc .tn{font-size:11px;font-weight:600;color:var(--tx);margin-bottom:2px}
+.tc .tv{font-size:10px;color:var(--am);font-family:var(--mn)}
+.tc .tr{font-size:10px;color:var(--tx3);line-height:1.4;margin-top:2px}
+/* api endpoints */
+.ep{border:1px solid var(--bd);border-radius:var(--r);margin-bottom:.4rem;overflow:hidden}
+.eph{display:flex;align-items:center;gap:.55rem;padding:.48rem .85rem;background:var(--bg3);cursor:pointer}
+.eph:hover{background:var(--bg4)}
+.mt{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;min-width:44px;text-align:center}
+.GET{background:var(--gd);color:var(--gr)}.POST{background:var(--bld);color:var(--bl)}.DELETE{background:var(--rdd);color:var(--rd)}
+.ep-p{font-family:var(--mn);font-size:11px;color:var(--tx)}
+.ep-d{font-size:11px;color:var(--tx2);flex:1}
+.epb{display:none;border-top:1px solid var(--bd);padding:.7rem .85rem}.epb.open{display:block}
+.epl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin:.5rem 0 .3rem}.epl:first-child{margin-top:0}
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:.6rem}
+th{text-align:left;padding:.38rem .65rem;background:var(--bg3);color:var(--tx2);font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--bd)}
+td{padding:.36rem .65rem;border-bottom:1px solid var(--bd);color:var(--tx2);line-height:1.4}
+td:first-child{font-family:var(--mn);color:var(--tl);font-size:10.5px}td:nth-child(2){color:var(--am);font-size:10.5px}
+tr:hover td{background:var(--bg3)}
+/* criteria */
+ul.ok{list-style:none}
+ul.ok li{display:flex;gap:.55rem;padding:.38rem 0;border-bottom:1px solid var(--bd);font-size:12px;color:var(--tx2);align-items:flex-start}
+ul.ok li:last-child{border-bottom:none}ul.ok li::before{content:"✓";color:var(--gr);flex-shrink:0;margin-top:1px}
+/* bdd / functional spec */
+.feat{border:1px solid var(--bd);border-radius:var(--r);margin-bottom:.7rem;overflow:hidden}
+.fh{display:flex;align-items:center;justify-content:space-between;padding:.6rem .95rem;background:var(--bg2);cursor:pointer;user-select:none}
+.fh:hover{background:var(--bg3)}.fh h3{font-size:12px;font-weight:600;color:var(--tx)}
+.fh .fi{font-size:11px;color:var(--tx3);font-family:var(--mn)}
+.fb{display:none;border-top:1px solid var(--bd)}.fb.open{display:block}
+.story{padding:.65rem .95rem;background:var(--gd);border-bottom:1px solid var(--bd);font-size:12px;color:#a8d880;line-height:1.6}
+.story strong{color:var(--gr)}
+.scenarios{padding:.75rem .95rem}
+.sc-block{margin-bottom:.85rem;border:1px solid var(--bd);border-radius:6px;overflow:hidden}
+.sc-block:last-child{margin-bottom:0}
+.sc-title{padding:.42rem .85rem;background:var(--bg3);font-size:11px;font-weight:600;color:var(--tx);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:.5rem}
+.sc-tag{font-size:9px;font-weight:500;padding:1px 6px;border-radius:3px}
+.t-h{background:#1a3a1a;color:var(--gr)}.t-s{background:var(--rdd);color:var(--rd)}.t-e{background:var(--ad);color:var(--am)}
+.steps{padding:.55rem .85rem}
+.step{display:flex;gap:.6rem;padding:.2rem 0;font-size:11.5px;color:var(--tx2);line-height:1.5}
+.kw{font-family:var(--mn);font-size:10.5px;min-width:46px;text-align:right;flex-shrink:0}
+.given{color:var(--pu)}.when{color:var(--bl)}.then{color:var(--gr)}.and{color:var(--tx3)}.but{color:var(--rd)}
+.step-t{flex:1}
+.step-t code{font-family:var(--mn);font-size:10.5px;color:var(--tl);background:var(--bg3);padding:1px 5px;border-radius:3px}
+.rules{padding:.6rem .95rem;border-top:1px solid var(--bd);background:var(--bg2)}
+.rules-t{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tx3);margin-bottom:.4rem}
+.rule{display:flex;gap:.5rem;font-size:11.5px;color:var(--tx2);margin-bottom:.25rem;align-items:flex-start}
+.rule::before{content:"R";font-family:var(--mn);font-size:9px;color:var(--am);background:var(--ad);padding:1px 4px;border-radius:3px;flex-shrink:0;margin-top:2px}
+/* misc */
+.hidden{display:none}
+.note{font-size:12px;color:var(--tx2);line-height:1.65;margin-bottom:.6rem;padding:.5rem .7rem;background:var(--bg3);border-radius:var(--r);border-left:2px solid var(--am)}
+.info{background:var(--bld);border:1px solid #1a3a5c;border-radius:var(--r);padding:.55rem .85rem;font-size:12px;color:var(--bl);margin-bottom:.6rem;line-height:1.55}
+code{font-family:var(--mn);font-size:10.5px;color:var(--tl);background:var(--bg3);padding:1px 5px;border-radius:3px}
+.sub{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tx3);margin:.8rem 0 .35rem}
+.arch-flow{background:var(--cd);border:1px solid var(--bd);border-radius:var(--r);padding:.85rem .95rem;font-family:var(--mn);font-size:10.5px;color:#c2c0b7;line-height:1.8;margin-bottom:.6rem}
+</style></head><body>
+<div class="shell">
+<nav class="sb">
+  <div class="sl"><h1>Platform Additions</h1><p>Phase 09 — UI · Phase 10 — CI/CD</p></div>
+  <div class="ss">Phases</div>
+  <button class="nb active" onclick="SP('p9',this)"><span class="n">PHASE 09 · Weeks 23–26</span>Unified platform UI</button>
+  <button class="nb" onclick="SP('p10',this)"><span class="n">PHASE 10 · Weeks 27–30</span>CI/CD pipelines</button>
+  <div class="ss">Quick links</div>
+  <button class="nb" onclick="SP('p9',this);ST('tech')">Tech spec — UI</button>
+  <button class="nb" onclick="SP('p9',this);ST('func')">Functional spec — UI</button>
+  <button class="nb" onclick="SP('p10',this);ST('tech')">Tech spec — CI/CD</button>
+  <button class="nb" onclick="SP('p10',this);ST('func')">Functional spec — CI/CD</button>
+</nav>
+<main class="cn">
+<!-- PHASE 09 -->
+<div id="p9">
+<div class="ph">
+  <h2>Phase 09 — Unified platform UI</h2>
+  <div class="meta"><span class="badge bw">Weeks 23–26</span><span class="badge bp">Next.js 15 · React 19 · Tailwind v4</span><span class="badge bm">~120 MB additional</span></div>
+  <p>A production-grade web application giving every platform stakeholder a single pane of glass — developers see model health and their usage, operators see platform-wide metrics and alerts, admins manage keys and model config. Built on the 2025–2026 React ecosystem.</p>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="ST('tech',this)">Technical specification</button>
+  <button class="tab" onclick="ST('func',this)">Functional specification</button>
+</div>
+
+<!-- ── TECH SPEC ─────────────────────────────────────── -->
+<div class="tab-pane active" id="tab-tech">
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Tech stack — UI</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="tcg">
+<div class="tc"><div class="tn">Next.js 15</div><div class="tv">npm create next-app@latest</div><div class="tr">App Router, React Server Components, Server Actions, Partial Prerendering. The production React framework as of 2026</div></div>
+<div class="tc"><div class="tn">React 19</div><div class="tv">react@19, react-dom@19</div><div class="tr">use() hook for async, useOptimistic, useFormStatus, ref as prop. Concurrent rendering throughout</div></div>
+<div class="tc"><div class="tn">Tailwind CSS v4</div><div class="tv">tailwindcss@^4.0</div><div class="tr">CSS-first config, native cascade layers, @property animations. No tailwind.config.js — config in CSS</div></div>
+<div class="tc"><div class="tn">shadcn/ui</div><div class="tv">npx shadcn@latest init</div><div class="tr">Radix UI primitives + Tailwind. Copy-owned components: accessible, themeable, composable</div></div>
+<div class="tc"><div class="tn">TanStack Query v5</div><div class="tv">@tanstack/react-query@^5</div><div class="tr">Server state, polling, optimistic updates, prefetching. Replaces useEffect + fetch patterns</div></div>
+<div class="tc"><div class="tn">Recharts 2.x</div><div class="tv">recharts@^2.12</div><div class="tr">TTFT histograms, RPS time series, spend pie charts, model health gauges</div></div>
+<div class="tc"><div class="tn">Zustand 5</div><div class="tv">zustand@^5</div><div class="tr">Minimal client state: active filters, sidebar state, notification queue</div></div>
+<div class="tc"><div class="tn">Zod 3</div><div class="tv">zod@^3</div><div class="tr">Runtime validation for all API responses and form inputs</div></div>
+<div class="tc"><div class="tn">TypeScript 5.5</div><div class="tv">typescript@^5.5</div><div class="tr">Strict mode. All API response shapes typed. No any</div></div>
+<div class="tc"><div class="tn">Lucide React</div><div class="tv">lucide-react@latest</div><div class="tr">Icon system — consistent across all UI surfaces</div></div>
+<div class="tc"><div class="tn">date-fns 3</div><div class="tv">date-fns@^3</div><div class="tr">Timestamp formatting for logs, metrics, audit trail</div></div>
+<div class="tc"><div class="tn">next-auth v5</div><div class="tv">next-auth@^5</div><div class="tr">Keycloak OIDC provider integration — SSO login for the platform UI itself</div></div>
+</div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Add UI service to docker-compose.yml</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>  platform-ui:
+    build:
+      context: ./services/platform-ui
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080       # Kong proxy
+        NEXT_PUBLIC_APP_ENV: local
+    ports:
+      - "3001:3000"                                      # :3000 taken by Grafana
+    environment:
+      NEXTAUTH_URL:    http://localhost:3001
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      KEYCLOAK_URL:    http://keycloak:8080
+      KEYCLOAK_REALM:  inference-platform
+      KEYCLOAK_CLIENT_ID:     inference-gateway
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      LITELLM_URL:     http://litellm:4000
+      LITELLM_KEY:     ${LITELLM_MASTER_KEY}
+      PROMETHEUS_URL:  http://prometheus:9090
+      LOKI_URL:        http://loki:3100
+      KONG_ADMIN_URL:  http://kong:8001
+      MLFLOW_URL:      http://mlflow:5000
+    profiles: [portal]
+    depends_on: [kong, litellm, prometheus]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD","curl","-sf","http://localhost:3000/api/health"]
+      interval: 30s; retries: 3</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>services/platform-ui/Dockerfile</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><pre>FROM node:22-alpine AS deps
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable pnpm && pnpm install --frozen-lockfile
+
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_APP_ENV
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_APP_ENV=$NEXT_PUBLIC_APP_ENV
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN corepack enable pnpm && pnpm build
+
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+COPY --from=builder --chown=appuser:appgroup /app/.next/standalone ./
+COPY --from=builder --chown=appuser:appgroup /app/.next/static ./.next/static
+COPY --from=builder --chown=appuser:appgroup /app/public ./public
+USER appuser
+EXPOSE 3000
+CMD ["node","server.js"]</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>services/platform-ui — project structure</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><pre>platform-ui/
+├── app/                                   # Next.js App Router
+│   ├── layout.tsx                         # Root layout + providers
+│   ├── page.tsx                           # Redirect to /dashboard
+│   ├── (auth)/
+│   │   └── login/page.tsx                 # Keycloak OIDC login page
+│   └── (platform)/                        # Auth-protected routes
+│       ├── layout.tsx                     # Sidebar + topbar shell
+│       ├── dashboard/page.tsx             # Platform overview
+│       ├── models/
+│       │   ├── page.tsx                   # Model catalogue
+│       │   └── [id]/page.tsx              # Model detail + health
+│       ├── metrics/page.tsx               # TTFT, RPS, errors, cost
+│       ├── endpoints/page.tsx             # API explorer (embedded Swagger)
+│       ├── audit/page.tsx                 # Audit log viewer (Loki query)
+│       ├── keys/
+│       │   ├── page.tsx                   # API key list + budget status
+│       │   └── new/page.tsx               # Create virtual key form
+│       ├── cost/page.tsx                  # Cost breakdown + estimator
+│       └── admin/
+│           ├── page.tsx                   # Admin overview
+│           ├── models/page.tsx            # MLflow model registry view
+│           └── guardrails/page.tsx        # Scanner config + block log
+│
+├── components/
+│   ├── ui/                                # shadcn/ui components (owned)
+│   ├── charts/
+│   │   ├── TTFTHistogram.tsx              # p50/p95/p99 latency histogram
+│   │   ├── RPSTimeSeries.tsx              # Requests per second by model
+│   │   ├── SpendBreakdown.tsx             # Pie + bar cost charts
+│   │   └── ModelHealthGrid.tsx            # Status grid per model
+│   ├── layout/
+│   │   ├── Sidebar.tsx
+│   │   └── Topbar.tsx
+│   ├── ModelCard.tsx                      # Model status + latency card
+│   ├── KeyBudgetBar.tsx                   # Budget utilisation component
+│   └── AuditLogTable.tsx                  # Paginated audit log
+│
+├── lib/
+│   ├── api/
+│   │   ├── litellm.ts                     # LiteLLM API client (typed)
+│   │   ├── prometheus.ts                  # PromQL query helpers
+│   │   ├── loki.ts                        # Loki log query client
+│   │   ├── kong.ts                        # Kong Admin API client
+│   │   └── mlflow.ts                      # MLflow API client
+│   ├── auth.ts                            # next-auth Keycloak config
+│   └── schemas.ts                         # Zod schemas for all API shapes
+│
+├── hooks/
+│   ├── usePlatformHealth.ts               # TanStack Query: /health polling
+│   ├── useMetrics.ts                      # TanStack Query: Prometheus
+│   ├── useModelHealth.ts                  # TanStack Query: /router/info
+│   └── useAuditLog.ts                     # TanStack Query: Loki logs
+│
+├── package.json
+├── next.config.ts
+├── tsconfig.json
+└── Dockerfile</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Key screen specifications</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="sub">Dashboard — /dashboard</div>
+<div class="cw"><pre>Layout: 4-column KPI strip + 2-column charts + model health grid
+
+KPI strip (auto-refresh every 15s via TanStack Query):
+  · Platform status: HEALTHY / DEGRADED / DOWN  (derived from /health)
+  · TTFT p95:  live value from Prometheus query
+  · Error rate %: rate(errors[5m])/rate(total[5m])
+  · Active requests: sum(vllm:num_requests_running) or litellm in_flight
+
+Charts row:
+  · Left (60%): RPSTimeSeries — stacked by model, last 1h, 6h, 24h toggle
+  · Right (40%): SpendBreakdown — pie by model + stat "Spend today $X.XX"
+
+Model health grid:
+  · One card per model — status dot (green/amber/red), provider badge,
+    avg latency, fallback chain indicator, last-used timestamp
+  · Click → /models/{id}  for full detail</pre></div>
+
+<div class="sub">Metrics — /metrics</div>
+<div class="cw"><pre>Time range picker: 1h | 6h | 24h | 7d (default 6h)
+
+Row 1 — Latency:
+  · TTFTHistogram: heatmap by model, p50/p95/p99 overlaid lines
+  · Provider latency box plot: OpenAI vs Anthropic vs Google vs Cohere
+
+Row 2 — Traffic:
+  · RPS time series (all models stacked)
+  · Cache hit rate time series (target line at 30%)
+
+Row 3 — Errors + Guardrails:
+  · Error rate by type (4xx, 5xx, guardrail blocks)
+  · PII entities redacted per hour (bar chart)
+
+Row 4 — Cost:
+  · Spend per model per day (grouped bar, last 7 days)
+  · Budget utilisation table: key alias | spend | budget | % | status badge</pre></div>
+
+<div class="sub">Endpoints — /endpoints</div>
+<div class="cw"><pre>Embedded Swagger UI iframe pointed at http://localhost:8090 (portal-backend OpenAPI)
+PLUS platform-native additions:
+  · Live endpoint health table: path | method | avg latency | error rate | requests today
+  · Each row expandable → last 5 requests with status codes
+  · WebSocket status indicator (ws://localhost:8080/ws/... connection test)</pre></div>
+
+<div class="sub">Keys — /keys</div>
+<div class="cw"><pre>Table: key alias | models allowed | budget | spend | % used | expires | actions
+Actions: copy key | edit budget | revoke
+Budget bar: green <50% | amber <80% | red >80%
+"Create new key" button → /keys/new form with Zod-validated fields:
+  · models (multiselect from catalogue)
+  · max_budget (number, $)
+  · tpm_limit, rpm_limit
+  · expiry (date picker)
+  · key alias (slug validation)
+Server Action: POST to LiteLLM /key/generate → toast on success</pre></div>
+
+<div class="sub">Audit log — /audit</div>
+<div class="cw"><pre>Filters: date range | event_type (REQUEST|RESPONSE|BLOCKED_PRE|BLOCKED_POST) | model | key hash
+Table (virtualised scroll): timestamp | event_type | request_id | model | pii_redacted | scanner_blocked
+Row click → drawer with full audit entry JSON
+Export button: download filtered log as JSONL
+RULE: Raw prompt text never shown — this view is metadata only</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Backend API routes — Next.js Route Handlers</h3><span class="tog">▾</span></div><div class="cb">
+<div class="note">These are server-side Next.js route handlers — they proxy to internal services so credentials never hit the browser. All routes require a valid Keycloak session.</div>
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt GET">GET</span><span class="ep-p">/api/platform/health</span><span class="ep-d">Aggregate health of all services</span></div><div class="epb">
+<p class="epl">Response</p>
+<pre>{
+  "status": "healthy",             // healthy | degraded | down
+  "services": {
+    "litellm":    {"status":"healthy","latency_ms":12},
+    "kong":       {"status":"healthy","latency_ms":3},
+    "redis":      {"status":"healthy","latency_ms":1},
+    "postgres":   {"status":"healthy","latency_ms":4},
+    "keycloak":   {"status":"healthy","latency_ms":18},
+    "guardrails": {"status":"healthy","latency_ms":8}
+  },
+  "models": {
+    "gpt-4o":      "healthy",
+    "claude-sonnet": "healthy",
+    "gemini-flash": "healthy"
+  },
+  "checked_at": "2025-05-01T10:00:00Z"
+}</pre>
+</div></div>
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt GET">GET</span><span class="ep-p">/api/metrics?range=6h</span><span class="ep-d">Aggregated metrics for dashboard</span></div><div class="epb">
+<p class="epl">Response</p>
+<pre>{
+  "ttft": {
+    "p50_ms": 180, "p95_ms": 340, "p99_ms": 620,
+    "history": [{"ts":"2025-05-01T04:00:00Z","p50":165,"p95":310}]
+  },
+  "rps": {
+    "current": 4.2,
+    "by_model": {"gpt-4o-mini":2.1,"claude-haiku":1.3,"gemini-flash":0.8},
+    "history": [{"ts":"...","total":3.8}]
+  },
+  "errors": {"rate_pct":0.4,"by_type":{"4xx":12,"5xx":2,"guardrail":6}},
+  "cache_hit_pct": 34.2,
+  "spend_today_usd": 8.43
+}</pre>
+</div></div>
+<div class="ep"><div class="eph" onclick="E(this)"><span class="mt GET">GET</span><span class="ep-p">/api/audit?limit=50&cursor=xxx</span><span class="ep-d">Paginated audit log from Loki</span></div><div class="epb">
+<p class="epl">Response</p>
+<pre>{
+  "entries": [
+    {
+      "timestamp": "2025-05-01T10:00:00Z",
+      "event_type": "REQUEST",
+      "request_id": "req_abc",
+      "key_hash": "sha256:abc123",
+      "model": "gpt-4o-mini",
+      "pii_redacted": 0,
+      "scanner_blocked": null
+    }
+  ],
+  "next_cursor": "xxx",
+  "total": 1240
+}</pre>
+</div></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Acceptance criteria — tech</h3><span class="tog">▾</span></div><div class="cb open">
+<ul class="ok">
+<li>make up-portal starts platform-ui — accessible at http://localhost:3001</li>
+<li>Login page redirects to Keycloak; after successful OIDC auth, session cookie set and dashboard loads</li>
+<li>Dashboard KPI strip refreshes every 15s without page reload</li>
+<li>TTFT histogram chart updates after 10 test requests are made</li>
+<li>Model health grid shows all 9 models with correct status dots</li>
+<li>Create key form validates: required fields, $ budget format, slug alias — client and server side via Zod</li>
+<li>Audit log table shows entries with no prompt text visible in any column</li>
+<li>Lighthouse score on /dashboard: Performance ≥ 85, Accessibility ≥ 95</li>
+<li>All routes return 401 when session cookie is missing — verified with curl</li>
+<li>TypeScript compilation: zero errors (tsc --noEmit)</li>
+<li>Next.js build completes without errors (next build)</li>
+</ul>
+</div></div>
+
+</div><!-- end tab-tech -->
+
+<!-- ── FUNCTIONAL SPEC ────────────────────────────────── -->
+<div class="tab-pane" id="tab-func">
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-09-01 · Platform status dashboard</h3><div class="fi">P09</div><span class="tog">▾</span></div><div class="fb open">
+<div class="story"><strong>As a</strong> platform operator, <strong>I want</strong> a single screen showing the real-time health of every service and model, <strong>so that</strong> I can identify degradation in under 5 seconds without opening Grafana or running curl commands.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>All services healthy — dashboard shows green</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a user with any authenticated role opens the platform UI</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the /dashboard page loads</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">a "Platform status: HEALTHY" indicator is visible in the header</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">all 9 model health cards show a green status indicator</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">TTFT p95 and error rate KPI values are visible and non-zero after at least one request has been made</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-s">failure path</span>Degraded provider reflected in UI</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">one LLM provider's API is returning errors and LiteLLM has placed it in cooldown</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the dashboard auto-refreshes (within 15 seconds)</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the affected model card shows an amber or red status indicator</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the platform status header shows "DEGRADED"</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">active fallback chains are listed on the affected model card</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-e">edge case</span>Dashboard auto-refreshes without user interaction</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the user has had the dashboard open for more than 15 seconds</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">no user interaction occurs</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">all KPI values and status indicators are silently updated with fresh data</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">no full page reload occurs — only the data changes</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-t">Business rules</div>
+<div class="rule">Dashboard data must never be more than 30 seconds stale when the tab is in focus</div>
+<div class="rule">Platform status is HEALTHY only if all configured services are reachable and all models have at least one healthy provider</div>
+<div class="rule">A user can see the dashboard regardless of their role — visibility is not role-restricted</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-09-02 · Real-time metrics view</h3><div class="fi">P09</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> developer, <strong>I want</strong> to see latency, throughput, and error metrics over selectable time windows, <strong>so that</strong> I can correlate my application's behaviour with platform performance without accessing Grafana directly.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>TTFT histogram displayed for selected range</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">at least 20 requests have been made in the last 6 hours</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the user opens /metrics with the 6h time range selected</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">a TTFT histogram chart is visible showing p50, p95, and p99 latency lines</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">each line is labelled and colour-coded</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the x-axis shows timestamps and the y-axis shows milliseconds</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Time range change updates all charts</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t">the user clicks the "24h" time range selector</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">all charts on the metrics page update to reflect the 24-hour window within 2 seconds</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-09-03 · API endpoint explorer</h3><div class="fi">P09</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> developer, <strong>I want</strong> to browse and test every API endpoint from within the platform UI, <strong>so that</strong> I never need to switch to a separate tool to explore or sandbox the API.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Developer sends live request from explorer</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a developer is authenticated and on the /endpoints page</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the developer selects POST /v1/chat/completions, fills in the request body, and clicks Execute</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">a real request is sent to the inference platform using the developer's session credentials</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the actual LLM response is displayed inline</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the request latency is shown in milliseconds</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Live endpoint health table visible</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t">the /endpoints page loads</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">a table lists all active routes with: path, method, average latency, error rate, and request count today</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-09-04 · API key management UI</h3><div class="fi">P09</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform administrator, <strong>I want</strong> to create, view, and revoke API keys through the UI without using curl or the LiteLLM admin API directly, <strong>so that</strong> key management is self-service and auditable.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Admin creates new team key via UI form</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">an admin user is on the /keys/new page</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the form is completed with valid values and submitted</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">a new virtual key is created in LiteLLM</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">a success toast shows the new key value (shown once only)</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the new key appears in the /keys list immediately</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-s">failure path</span>Invalid form data shows inline validation errors</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t">the form is submitted with a negative budget value</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">an inline validation error appears on the budget field before any network request is made</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-s">failure path</span>Non-admin cannot access key management</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a user with role model-user navigates to /keys/new</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the page displays a 403 Access Denied message</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-t">Business rules</div>
+<div class="rule">The key value is shown exactly once — in the success toast — and never stored or displayed again</div>
+<div class="rule">Only users with platform-admin role can create, edit, or revoke keys</div>
+<div class="rule">Key revocation requires a confirmation dialog before the action is executed</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-09-05 · Audit log viewer</h3><div class="fi">P09</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> compliance auditor, <strong>I want</strong> to search and filter the audit trail by event type, date, model, or request ID, <strong>so that</strong> I can investigate specific incidents without direct database or log system access.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Filter by blocked events</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t">the user sets event_type filter to "BLOCKED_PRE" on the /audit page</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">only audit entries with event_type BLOCKED_PRE are displayed</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">each row shows: timestamp, request_id, model, the scanner that blocked, and PII count</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Search by request_id</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t">the user enters a known request_id in the search box</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">all audit entries for that request_id are displayed (typically REQUEST + RESPONSE or BLOCKED_PRE)</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-e">edge case</span>No prompt text visible anywhere in the UI</div>
+<div class="steps">
+<div class="step"><span class="kw when">When</span><span class="step-t">the audit log is searched or viewed</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">no column, drawer, or expanded view shows any prompt or response text</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the UI makes clear that prompt content is deliberately not logged</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-09-06 · Authentication and access control</h3><div class="fi">P09</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> security administrator, <strong>I want</strong> the platform UI to enforce the same SSO and RBAC as the API, <strong>so that</strong> gaining access to the UI does not bypass any platform security controls.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Unauthenticated user redirected to Keycloak</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a user opens any /platform route without a session</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the user is redirected to the Keycloak login page for the inference-platform realm</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">after successful authentication, the user is redirected back to the originally requested URL</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Role-restricted pages inaccessible to wrong role</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a user with model-user role is authenticated</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the user navigates to /admin or /keys/new</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the page displays an Access Denied screen — not a 404</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-t">Business rules</div>
+<div class="rule">UI sessions expire after 8 hours — user must re-authenticate via Keycloak</div>
+<div class="rule">Role-to-page mapping: platform-admin → all pages; model-user → dashboard, metrics, endpoints, cost; readonly → dashboard, metrics only</div>
+</div></div></div>
+
+</div><!-- end tab-func -->
+</div><!-- end p9 -->
+<!-- PHASE 10 -->
+<div id="p10" class="hidden">
+<div class="ph">
+  <h2>Phase 10 — CI/CD pipelines</h2>
+  <div class="meta"><span class="badge bw">Weeks 27–30</span><span class="badge bt">GitHub Actions · Cloud Build · ArgoCD · Helm</span><span class="badge be">Local K3s → GCP GKE</span></div>
+  <p>Automated build, test, security scan, and deployment pipelines for every service in the platform. Local developer loop via Skaffold targeting K3s. Production deployments via GitOps on GKE. Container images signed with Cosign. No manual deployments after this phase.</p>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="ST('tech10',this)">Technical specification</button>
+  <button class="tab" onclick="ST('func10',this)">Functional specification</button>
+</div>
+
+<!-- ── TECH SPEC ─────────────────────────────────────── -->
+<div class="tab-pane active" id="tab-tech10">
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>CI/CD tech stack</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="tcg">
+<div class="tc"><div class="tn">GitHub Actions</div><div class="tv">ubuntu-latest runners</div><div class="tr">CI pipeline: lint, test, build, scan, push. Reusable workflows per service type. OIDC to GCP — no long-lived credentials</div></div>
+<div class="tc"><div class="tn">Docker Buildx + BuildKit</div><div class="tv">docker/build-push-action@v6</div><div class="tr">Multi-platform builds (linux/amd64, linux/arm64). Layer caching via GitHub Actions cache. Build attestations</div></div>
+<div class="tc"><div class="tn">GCP Artifact Registry</div><div class="tv">us-central1-docker.pkg.dev</div><div class="tr">Container image store. Replaces deprecated Container Registry. Vulnerability scanning on push. Image retention policies</div></div>
+<div class="tc"><div class="tn">Google Cloud Build</div><div class="tv">gcloud builds submit</div><div class="tr">GCP-native build trigger for push to main. Runs on GCP — no egress cost for GCR pushes</div></div>
+<div class="tc"><div class="tn">Google Cloud Deploy</div><div class="tv">gcloud deploy releases create</div><div class="tr">Managed delivery pipeline: dev → staging → prod. Canary rollouts. Rollback in one command. Integrated with GKE</div></div>
+<div class="tc"><div class="tn">ArgoCD 2.x</div><div class="tv">argoproj/argocd:v2.12</div><div class="tr">GitOps controller. Runs on both K3s (local) and GKE (prod). Watches Helm chart repo, applies diff automatically</div></div>
+<div class="tc"><div class="tn">Helm 3.x</div><div class="tv">helm.sh/helm:v3.17</div><div class="tr">Chart per service. values.yaml per environment (local, gcp-dev, gcp-prod). Helmfile for multi-chart orchestration</div></div>
+<div class="tc"><div class="tn">Kustomize</div><div class="tv">kubectl apply -k</div><div class="tr">Environment overlays on top of base Helm output. Patches for GCP-specific annotations (Workload Identity, Cloud Armor)</div></div>
+<div class="tc"><div class="tn">Skaffold 2.x</div><div class="tv">skaffold@latest</div><div class="tr">Local dev loop: file watch → rebuild → redeploy to K3s in seconds. skaffold dev for iterative development</div></div>
+<div class="tc"><div class="tn">Trivy</div><div class="tv">aquasecurity/trivy-action@v0.28</div><div class="tr">Container vulnerability scanning. CRITICAL CVEs fail the pipeline. SARIF uploaded to GitHub Security tab</div></div>
+<div class="tc"><div class="tn">Cosign + Sigstore</div><div class="tv">sigstore/cosign-installer@v3</div><div class="tr">Keyless container image signing via OIDC. Signatures stored in Artifact Registry. Verified at deploy time</div></div>
+<div class="tc"><div class="tn">KEDA 2.x</div><div class="tv">helm install keda kedacore/keda</div><div class="tr">Event-driven autoscaling on GKE. Scales inference pods on Prometheus queue-depth metric</div></div>
+</div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Repository structure — CI/CD additions</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><pre>inference-platform/
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                     # PR checks: lint, test, build, scan
+│       ├── cd-local.yml               # Deploy to K3s via Skaffold
+│       ├── cd-gcp-dev.yml             # Deploy to GKE dev on push to main
+│       ├── cd-gcp-prod.yml            # Deploy to GKE prod on release tag
+│       └── reusable/
+│           ├── build-push.yml         # Reusable: build + push + sign image
+│           ├── trivy-scan.yml         # Reusable: vulnerability scan
+│           └── deploy-argocd.yml      # Reusable: sync ArgoCD app
+│
+├── charts/                            # Helm charts — one per service
+│   ├── litellm/
+│   │   ├── Chart.yaml
+│   │   ├── values.yaml                # Base values
+│   │   ├── values-local.yaml          # K3s overrides
+│   │   ├── values-gcp-dev.yaml        # GKE dev overrides
+│   │   ├── values-gcp-prod.yaml       # GKE prod overrides
+│   │   └── templates/
+│   │       ├── deployment.yaml
+│   │       ├── service.yaml
+│   │       ├── configmap.yaml
+│   │       └── hpa.yaml               # HPA or KEDA ScaledObject
+│   ├── kong/
+│   ├── platform-ui/
+│   ├── guardrails/
+│   ├── observability/                 # Umbrella chart: prometheus+grafana+loki
+│   └── helmfile.yaml                  # Multi-chart orchestration
+│
+├── deploy/
+│   ├── k3s/                           # Local K3s overlays (Kustomize)
+│   │   └── kustomization.yaml
+│   └── gcp/
+│       ├── dev/kustomization.yaml
+│       ├── prod/kustomization.yaml
+│       └── clouddeploy.yaml           # Cloud Deploy pipeline definition
+│
+├── skaffold.yaml                      # Local dev loop config
+└── .argocd/
+    └── applications/                  # ArgoCD Application CRDs
+        ├── litellm.yaml
+        ├── kong.yaml
+        └── platform-ui.yaml</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>.github/workflows/ci.yml — pull request pipeline</h3><span class="tog">▾</span></div><div class="cb open">
+<div class="cw"><div class="lbl">yaml</div><pre>name: CI — build, test, scan
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write        # For SARIF upload
+  id-token: write               # For OIDC to GCP
+
+env:
+  REGISTRY: us-central1-docker.pkg.dev
+  PROJECT:  ${{ secrets.GCP_PROJECT_ID }}
+  REPO:     inference-platform
+
+jobs:
+
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Python services
+        run: |
+          pip install ruff mypy
+          ruff check services/guardrails/ services/batch-worker/ services/portal-backend/
+          mypy services/guardrails/ --ignore-missing-imports
+
+      - name: Lint TypeScript (platform-ui)
+        working-directory: services/platform-ui
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm tsc --noEmit
+          pnpm lint
+
+      - name: Run smoke tests (mock mode)
+        run: bash scripts/smoke-test.sh http://localhost:4000 --mock
+
+  build-and-push:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [litellm, kong, guardrails, batch-worker, portal-backend, platform-ui]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WI_PROVIDER }}
+          service_account:            ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      - name: Build and push with Buildx
+        uses: docker/build-push-action@v6
+        with:
+          context:   ./services/${{ matrix.service }}
+          platforms: linux/amd64,linux/arm64
+          push:      ${{ github.event_name == 'push' }}
+          tags:      ${{ env.REGISTRY }}/${{ env.PROJECT }}/${{ env.REPO }}/${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+          provenance: true
+          sbom:       true
+
+  scan:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [litellm, kong, guardrails, batch-worker, portal-backend, platform-ui]
+    steps:
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@v0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.PROJECT }}/${{ env.REPO }}/${{ matrix.service }}:${{ github.sha }}
+          format:    sarif
+          output:    trivy-${{ matrix.service }}.sarif
+          severity:  CRITICAL,HIGH
+          exit-code: "1"            # Fail pipeline on CRITICAL CVEs
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.service }}.sarif
+
+  sign:
+    needs: scan
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [litellm, kong, guardrails, batch-worker, portal-backend, platform-ui]
+    steps:
+      - uses: sigstore/cosign-installer@v3
+
+      - name: Sign container image (keyless OIDC)
+        run: |
+          cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ env.PROJECT }}/${{ env.REPO }}/${{ matrix.service }}:${{ github.sha }}</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>.github/workflows/cd-gcp-dev.yml — GKE dev deployment</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><div class="lbl">yaml</div><pre>name: CD — deploy to GKE dev
+
+on:
+  workflow_run:
+    workflows: ["CI — build, test, scan"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy-dev:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: gcp-dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WI_PROVIDER }}
+          service_account:            ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: inference-platform-dev
+          location:     us-central1
+
+      - name: Create Cloud Deploy release
+        run: |
+          gcloud deploy releases create release-${{ github.sha }} \
+            --delivery-pipeline=inference-platform \
+            --region=us-central1 \
+            --images=litellm=${{ env.REGISTRY }}/${{ env.PROJECT }}/inference-platform/litellm:${{ github.sha }},\
+                     guardrails=${{ env.REGISTRY }}/${{ env.PROJECT }}/inference-platform/guardrails:${{ github.sha }},\
+                     platform-ui=${{ env.REGISTRY }}/${{ env.PROJECT }}/inference-platform/platform-ui:${{ github.sha }}
+
+      - name: Verify Cosign signatures before deploy
+        run: |
+          for svc in litellm guardrails platform-ui; do
+            cosign verify \
+              --certificate-identity-regexp=".*github.*" \
+              --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+              ${{ env.REGISTRY }}/${{ env.PROJECT }}/inference-platform/${svc}:${{ github.sha }}
+          done
+
+      - name: Run post-deploy smoke tests
+        run: bash scripts/smoke-test.sh https://api-dev.inference.internal</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>skaffold.yaml — local development loop</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><div class="lbl">yaml</div><pre>apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: inference-platform
+
+build:
+  artifacts:
+    - image: inference-platform/litellm
+      context: services/litellm
+      docker:
+        dockerfile: Dockerfile
+      sync:
+        manual:
+          - src: config.yaml            # Hot-reload config without full rebuild
+            dest: /app/config.yaml
+
+    - image: inference-platform/guardrails
+      context: services/guardrails
+      docker:
+        dockerfile: Dockerfile
+      sync:
+        infer: ["**/*.py"]              # Sync Python files without rebuild
+
+    - image: inference-platform/platform-ui
+      context: services/platform-ui
+      docker:
+        dockerfile: Dockerfile
+      sync:
+        infer: ["app/**", "components/**", "lib/**"]
+
+  local:
+    push: false                         # No push for local builds
+    useBuildkit: true
+
+deploy:
+  helm:
+    releases:
+      - name: litellm
+        chartPath: charts/litellm
+        valuesFiles: [charts/litellm/values-local.yaml]
+        setValues:
+          image.repository: inference-platform/litellm
+          image.tag: ""                 # Skaffold injects SHA
+
+      - name: kong
+        chartPath: charts/kong
+        valuesFiles: [charts/kong/values-local.yaml]
+
+      - name: platform-ui
+        chartPath: charts/platform-ui
+        valuesFiles: [charts/platform-ui/values-local.yaml]
+
+portForward:
+  - resourceType: service
+    resourceName: kong-proxy
+    port: 8080
+    localPort: 8080
+  - resourceType: service
+    resourceName: platform-ui
+    port: 3000
+    localPort: 3001
+
+# Usage:
+#   skaffold dev            → watch + rebuild + redeploy on file change
+#   skaffold run            → one-shot build + deploy
+#   skaffold delete         → teardown all resources</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>charts/litellm — sample Helm chart</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><div class="lbl">charts/litellm/values.yaml (base)</div><pre>replicaCount: 1
+
+image:
+  repository: us-central1-docker.pkg.dev/PROJECT/inference-platform/litellm
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 4000
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+autoscaling:
+  enabled: false                  # Override to true in gcp-prod
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+config:
+  secretRef: litellm-secrets      # K8s Secret containing API keys
+  configMapRef: litellm-config    # ConfigMap from config.yaml
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 4000
+  initialDelaySeconds: 20
+  periodSeconds: 30
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 4000
+  initialDelaySeconds: 10
+  periodSeconds: 10</pre></div>
+<div class="cw"><div class="lbl">charts/litellm/values-gcp-prod.yaml</div><pre>replicaCount: 3
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 65
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+podAntiAffinity:
+  requiredDuringSchedulingIgnoredDuringExecution:
+    - labelSelector:
+        matchLabels:
+          app: litellm
+      topologyKey: topology.kubernetes.io/zone  # Spread across AZs
+
+nodeSelector:
+  cloud.google.com/gke-nodepool: standard-pool</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>ArgoCD Application CRD — .argocd/applications/litellm.yaml</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><div class="lbl">yaml</div><pre>apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: litellm
+  namespace: argocd
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: platform-deployments
+    notifications.argoproj.io/subscribe.on-sync-failed.slack:    platform-alerts
+spec:
+  project: inference-platform
+  source:
+    repoURL: https://github.com/your-org/inference-platform
+    targetRevision: HEAD
+    path: charts/litellm
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-gcp-prod.yaml            # Environment overlay
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: inference-platform
+  syncPolicy:
+    automated:
+      prune:    true                      # Remove resources not in Git
+      selfHeal: true                      # Revert manual kubectl changes
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration:    5s
+        factor:      2
+        maxDuration: 3m</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>deploy/gcp/clouddeploy.yaml — Cloud Deploy pipeline</h3><span class="tog">▾</span></div><div class="cb">
+<div class="cw"><div class="lbl">yaml</div><pre>apiVersion: deploy.cloud.google.com/v1
+kind: DeliveryPipeline
+metadata:
+  name: inference-platform
+spec:
+  description: Inference platform delivery pipeline
+  serialPipeline:
+    stages:
+      - targetId: dev
+        profiles: [gcp-dev]
+        strategy:
+          standard:
+            verify: true                 # Run post-deploy verification job
+      - targetId: staging
+        profiles: [gcp-staging]
+        strategy:
+          canary:
+            runtimeConfig:
+              kubernetes:
+                serviceNetworking:
+                  service: kong-proxy
+            canaryDeployment:
+              percentages: [25, 50, 75]  # 25% → 50% → 75% → 100%
+              verify: true
+      - targetId: prod
+        profiles: [gcp-prod]
+        strategy:
+          canary:
+            canaryDeployment:
+              percentages: [10, 25, 50]
+              verify: true
+        approvalRequired: true           # Manual approval gate for prod
+---
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+metadata:
+  name: dev
+spec:
+  gke:
+    cluster: projects/PROJECT/locations/us-central1/clusters/inference-dev
+---
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+metadata:
+  name: prod
+spec:
+  requireApproval: true
+  gke:
+    cluster: projects/PROJECT/locations/us-central1/clusters/inference-prod</pre></div>
+</div></div>
+
+<div class="card"><div class="ch" onclick="T(this)"><h3>Acceptance criteria — tech</h3><span class="tog">▾</span></div><div class="cb open">
+<ul class="ok">
+<li>Opening a PR triggers ci.yml — lint, build, Trivy scan, and Cosign sign run automatically</li>
+<li>Trivy scan: CRITICAL CVE in any image fails the pipeline — PR cannot be merged</li>
+<li>Push to main triggers cd-gcp-dev.yml — images pushed to Artifact Registry and Cloud Deploy release created</li>
+<li>Cosign signature verified before any image is deployed to GKE — unsigned images rejected</li>
+<li>skaffold dev on Mac: file change in guardrails/main.py triggers hot-sync to K3s within 5 seconds</li>
+<li>ArgoCD UI shows all Applications in Synced state after a clean deploy</li>
+<li>ArgoCD self-heals: manual kubectl patch to litellm deployment is reverted within 3 minutes</li>
+<li>Cloud Deploy canary: 10% traffic to new version, metrics checked, auto-promote or rollback</li>
+<li>gcloud deploy rollback one command returns prod to previous release in under 5 minutes</li>
+<li>GitHub Actions uses OIDC to GCP — zero long-lived service account keys in repository secrets</li>
+<li>All images are multi-platform (linux/amd64 + linux/arm64) — verified with docker buildx imagetools inspect</li>
+</ul>
+</div></div>
+
+</div><!-- end tab-tech10 -->
+
+<!-- ── FUNCTIONAL SPEC ────────────────────────────────── -->
+<div class="tab-pane" id="tab-func10">
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-10-01 · Automated build pipeline on pull request</h3><div class="fi">P10</div><span class="tog">▾</span></div><div class="fb open">
+<div class="story"><strong>As a</strong> developer, <strong>I want</strong> every pull request automatically built, tested, and scanned for vulnerabilities, <strong>so that</strong> I receive feedback within 10 minutes of opening a PR without waiting for a manual review.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Clean PR — all checks pass</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a developer opens a pull request with code changes to the guardrails service</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the CI pipeline starts</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the lint job passes within 2 minutes</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the container image for guardrails is built successfully</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the Trivy scan completes and reports no CRITICAL vulnerabilities</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">all GitHub status checks show green</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the pull request is unblocked for review</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-s">failure path</span>CRITICAL CVE blocks PR merge</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a PR introduces a dependency with a known CRITICAL CVE</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the Trivy scan runs on the built image</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the Trivy scan job fails</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the SARIF report is uploaded to GitHub Security tab identifying the CVE</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the PR is blocked from merging by a required status check</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-s">failure path</span>Linting error blocks pipeline</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a PR contains Python code with type errors detected by mypy</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the lint job runs</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the lint job fails and the error message identifies the file and line number</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the build job does not start until the lint job passes</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-t">Business rules</div>
+<div class="rule">All PRs targeting main require the CI pipeline to pass before merge is permitted</div>
+<div class="rule">CRITICAL severity CVEs must block merge — HIGH severity CVEs create a warning but do not block</div>
+<div class="rule">Total CI pipeline duration must be under 10 minutes for a single-service change</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-10-02 · Container image signing and verification</h3><div class="fi">P10</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> security administrator, <strong>I want</strong> every container image signed at build time and signature verified before deployment, <strong>so that</strong> only images built by the CI pipeline can be deployed to production.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>CI-built image is signed and verifiable</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">an image has been built and pushed by the CI pipeline</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t"><code>cosign verify</code> is run against the image with the GitHub Actions OIDC issuer</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the verification succeeds and returns the signing certificate details</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-s">failure path</span>Manually built unsigned image rejected at deploy</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a developer manually builds and pushes an image without going through the CI pipeline</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the deployment pipeline attempts to deploy this image</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the Cosign verification step fails</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the deployment is aborted</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-10-03 · Local developer loop (Skaffold + K3s)</h3><div class="fi">P10</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> developer, <strong>I want</strong> code changes reflected in a running local Kubernetes environment within seconds of saving a file, <strong>so that</strong> I can develop and test against a realistic deployment environment without slow manual rebuilds.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Python file change hot-synced to running pod</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t"><code>skaffold dev</code> is running and the guardrails service pod is healthy</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the developer saves a change to <code>services/guardrails/main.py</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Skaffold syncs the changed file to the running pod within 5 seconds</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the service reflects the code change without a full container rebuild</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Dockerfile change triggers full rebuild</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t"><code>skaffold dev</code> is running</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the developer modifies <code>services/guardrails/Dockerfile</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Skaffold performs a full image rebuild and redeployment</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-e">edge case</span>Port forwarding survives pod restart</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">Skaffold has set up port forwarding for Kong on localhost:8080</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">a pod is restarted by Skaffold after a code change</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Skaffold re-establishes port forwarding automatically</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">localhost:8080 remains accessible without the developer restarting anything</span></div>
+</div></div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-10-04 · GitOps deployment via ArgoCD</h3><div class="fi">P10</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform engineer, <strong>I want</strong> all Kubernetes deployments driven by Git state with no manual kubectl commands, <strong>so that</strong> the deployed state is always auditable, reproducible, and version-controlled.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Merge to main triggers automatic deployment</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a Helm chart change is merged to main</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">ArgoCD polls the repository and detects the diff (within 3 minutes)</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">ArgoCD applies the diff to the cluster</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the ArgoCD Application status transitions to Synced</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">a Slack notification is posted to the #platform-deployments channel</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Manual change self-healed by ArgoCD</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a developer manually scales the litellm deployment with kubectl to 5 replicas</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">ArgoCD detects the drift (within 3 minutes)</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">ArgoCD reverts the replica count to the value specified in the Helm chart</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-s">failure path</span>Sync failure raises alert</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a Helm template error is introduced in a chart</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">ArgoCD attempts to sync</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the Application status changes to Degraded</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">a Slack notification is posted to #platform-alerts with the error message</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the running deployment is NOT modified — the previous version continues serving traffic</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-t">Business rules</div>
+<div class="rule">No deployment to any environment is permitted via kubectl directly — all changes must flow through Git</div>
+<div class="rule">ArgoCD Application sync is set to automated with selfHeal: true on all non-production environments</div>
+<div class="rule">Production ArgoCD Applications require manual sync approval in addition to the Cloud Deploy approval gate</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-10-05 · Canary deployment to GKE production</h3><div class="fi">P10</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform engineer, <strong>I want</strong> production deployments to roll out progressively to a small percentage of traffic first, <strong>so that</strong> regressions are caught before they affect all users and can be rolled back in under 5 minutes.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Canary succeeds and progresses to full rollout</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a release has been approved for production via the Cloud Deploy approval gate</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">Cloud Deploy starts the canary rollout</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">10% of production traffic is routed to the new version</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">Cloud Deploy runs the verification job (smoke test against the canary)</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">on passing verification, traffic progresses to 25%, then 50%, then 100%</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-s">failure path</span>Canary verification fails — automatic rollback</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">the canary is at 10% and the verification smoke test fails</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the verification job exits with a non-zero code</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">Cloud Deploy automatically rolls back to the previous stable release</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">100% of traffic returns to the previous version</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the rollback completes within 5 minutes of the verification failure</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">a Slack alert is posted with the failure reason</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Manual rollback via single command</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a release has been deployed to 100% of production traffic</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">a post-deployment issue is identified by an operator</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the operator runs <code>gcloud deploy rollback inference-platform --region us-central1</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the previous release is re-deployed to production</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the rollback is complete within 5 minutes</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-t">Business rules</div>
+<div class="rule">Every production deployment requires an explicit approval from a platform-admin in Cloud Deploy before canary start</div>
+<div class="rule">Canary stages are: 10% → 25% → 50% → 100%. Traffic cannot skip stages</div>
+<div class="rule">Maximum time at each canary stage before verification timeout is 10 minutes</div>
+<div class="rule">Rollback must restore the system to full previous capacity — not just reduce canary traffic</div>
+</div></div></div>
+
+<div class="feat"><div class="fh" onclick="F(this)"><h3>FEAT-10-06 · Environment promotion pipeline</h3><div class="fi">P10</div><span class="tog">▾</span></div><div class="fb">
+<div class="story"><strong>As a</strong> platform engineer, <strong>I want</strong> a structured promotion path from dev to staging to production, <strong>so that</strong> changes are validated in progressively more production-like environments before reaching users.</div>
+<div class="scenarios">
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Merge to main auto-deploys to dev</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a PR has been merged to main</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">the CI pipeline completes successfully</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">a Cloud Deploy release is created and automatically deployed to the dev environment</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the deployment to dev completes without human intervention</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-h">happy path</span>Staging promotion requires passing dev verification</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a release has been successfully deployed and verified in dev</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">an engineer promotes the release to staging via <code>gcloud deploy promote</code></span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the release is deployed to the staging environment</span></div>
+<div class="step"><span class="kw and">And</span><span class="step-t">the staging verification job runs automatically</span></div>
+</div></div>
+<div class="sc-block"><div class="sc-title"><span class="sc-tag t-s">failure path</span>Production blocked if staging not verified</div>
+<div class="steps">
+<div class="step"><span class="kw given">Given</span><span class="step-t">a release has not completed staging verification</span></div>
+<div class="step"><span class="kw when">When</span><span class="step-t">an engineer attempts to promote the release directly to production</span></div>
+<div class="step"><span class="kw then">Then</span><span class="step-t">the promotion is rejected by Cloud Deploy with an error indicating staging must pass first</span></div>
+</div></div>
+</div>
+<div class="rules"><div class="rules-t">Business rules</div>
+<div class="rule">Promotion order is strictly enforced: dev → staging → prod. No environment can be skipped</div>
+<div class="rule">A Git tag (e.g. release/v1.2.3) is required to trigger a production promotion — no ad-hoc SHA deploys to prod</div>
+<div class="rule">The same container image SHA must be deployed across all environments — no rebuilding per environment</div>
+</div></div></div>
+
+</div><!-- end tab-func10 -->
+</div><!-- end p10 -->
+</main></div>
+<script>
+var curPage='p9', curTabP9='tech', curTabP10='tech10';
+function SP(id,btn){
+  document.querySelectorAll('.cn>div').forEach(d=>d.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  curPage=id;
+}
+function ST(tabId,btn){
+  var phase=document.getElementById(curPage);
+  if(!phase)return;
+  phase.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  phase.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  var pane=phase.querySelector('#tab-'+tabId);
+  if(pane)pane.classList.add('active');
+  if(btn)btn.classList.add('active');
+  else{var tabs=phase.querySelectorAll('.tab');if(tabs.length)tabs[tabId.includes('func')?1:0].classList.add('active');}
+}
+function T(h){var b=h.nextElementSibling,t=h.querySelector('.tog'),o=b.classList.contains('open');b.classList.toggle('open',!o);t.textContent=o?'▾':'▴'}
+function F(h){var b=h.nextElementSibling,t=h.querySelector('.tog'),o=b.classList.contains('open');b.classList.toggle('open',!o);t.textContent=o?'▾':'▴'}
+function E(h){h.nextElementSibling.classList.toggle('open')}
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('pre').forEach(function(pre){
+    var wrap=pre.closest('.cw')||pre.parentElement;
+    if(wrap.style!==undefined)wrap.style.position='relative';
+    var b=document.createElement('button');b.className='cpb';b.textContent='copy';
+    b.onclick=function(){navigator.clipboard.writeText(pre.textContent).then(function(){b.textContent='copied';setTimeout(function(){b.textContent='copy'},1400)})};
+    (pre.closest('.cw')||pre.parentElement).appendChild(b);
+  });
+});
+</script>
+</body></html>
