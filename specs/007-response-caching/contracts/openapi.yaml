@@ -1,0 +1,234 @@
+openapi: "3.1.0"
+
+info:
+  title: Inference Platform — Response Caching Contract
+  version: "1.0"
+  description: |
+    This document extends the POST /v1/chat/completions contract (defined in
+    specs/005-chat-completion-otel-langfuse/contracts/openapi.yaml) with the
+    cache-specific response header added by feature 007.
+
+    No new endpoints are introduced. The only observable contract change is the
+    addition of the `x-litellm-cache-hit` response header on all non-streaming
+    POST /v1/chat/completions responses.
+
+paths:
+  /v1/chat/completions:
+    post:
+      summary: Chat Completions (with response caching)
+      description: |
+        Accepts an OpenAI-compatible chat completion request. Non-streaming requests
+        (stream: false or stream absent) are subject to cache lookup by model,
+        messages array, and temperature. Cache hits return stored responses in < 10 ms
+        with no provider call. Cache misses call the provider and store the result.
+
+        Streaming requests (stream: true) always bypass the cache.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatCompletionRequest"
+            examples:
+              cacheable_request:
+                summary: Non-streaming request (cacheable)
+                value:
+                  model: gpt-4o-mini
+                  messages:
+                    - role: user
+                      content: What is the capital of France?
+                  temperature: 0.0
+              uncacheable_streaming:
+                summary: Streaming request (always bypasses cache)
+                value:
+                  model: gpt-4o-mini
+                  messages:
+                    - role: user
+                      content: Tell me a story.
+                  stream: true
+      responses:
+        "200":
+          description: Successful response (cache hit or cache miss)
+          headers:
+            x-litellm-cache-hit:
+              description: |
+                Indicates whether the response was served from cache.
+                Present on all non-streaming responses.
+                Absent on streaming (SSE) responses.
+              schema:
+                type: string
+                enum: ["True", "False"]
+              example: "True"
+            X-Request-ID:
+              description: UUID identifying this request end-to-end (attached by Kong)
+              schema:
+                type: string
+                format: uuid
+            X-Platform:
+              description: Platform identifier (attached by Kong)
+              schema:
+                type: string
+                enum: ["inference-platform"]
+            X-API-Version:
+              description: API version (attached by Kong)
+              schema:
+                type: string
+                enum: ["1"]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatCompletionResponse"
+              examples:
+                cache_hit:
+                  summary: Cache hit response
+                  value:
+                    id: chatcmpl-abc123
+                    object: chat.completion
+                    model: gpt-4o-mini
+                    choices:
+                      - index: 0
+                        message:
+                          role: assistant
+                          content: The capital of France is Paris.
+                        finish_reason: stop
+                    usage:
+                      prompt_tokens: 15
+                      completion_tokens: 9
+                      total_tokens: 24
+                cache_miss:
+                  summary: Cache miss response (identical schema, different header)
+                  value:
+                    id: chatcmpl-xyz789
+                    object: chat.completion
+                    model: gpt-4o-mini
+                    choices:
+                      - index: 0
+                        message:
+                          role: assistant
+                          content: The capital of France is Paris.
+                        finish_reason: stop
+                    usage:
+                      prompt_tokens: 15
+                      completion_tokens: 9
+                      total_tokens: 24
+        "400":
+          description: Invalid request (invalid model, empty messages, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    ChatCompletionRequest:
+      type: object
+      required:
+        - model
+        - messages
+      properties:
+        model:
+          type: string
+          description: LiteLLM model alias (e.g. gpt-4o-mini)
+          example: gpt-4o-mini
+        messages:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/Message"
+        temperature:
+          type: number
+          minimum: 0.0
+          maximum: 2.0
+          default: 1.0
+          description: |
+            Sampling temperature. Included in the cache key.
+            When omitted, treated as 1.0 for cache key purposes.
+          example: 0.0
+        stream:
+          type: boolean
+          default: false
+          description: |
+            When true, response is SSE (text/event-stream). Cache is bypassed.
+            When false or absent, response is JSON and is subject to caching.
+
+    Message:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant, tool]
+        content:
+          type: string
+          description: Message content. PII is redacted before this reaches LiteLLM.
+
+    ChatCompletionResponse:
+      type: object
+      description: |
+        Standard OpenAI chat completion response. Schema is identical for cache
+        hits and cache misses. Cache status is conveyed via x-litellm-cache-hit
+        response header only — the JSON body is not modified.
+      properties:
+        id:
+          type: string
+          example: chatcmpl-abc123
+        object:
+          type: string
+          enum: [chat.completion]
+        model:
+          type: string
+          example: gpt-4o-mini
+        choices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Choice"
+        usage:
+          $ref: "#/components/schemas/Usage"
+
+    Choice:
+      type: object
+      properties:
+        index:
+          type: integer
+        message:
+          $ref: "#/components/schemas/AssistantMessage"
+        finish_reason:
+          type: string
+          enum: [stop, length, content_filter]
+
+    AssistantMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [assistant]
+        content:
+          type: string
+
+    Usage:
+      type: object
+      properties:
+        prompt_tokens:
+          type: integer
+        completion_tokens:
+          type: integer
+        total_tokens:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        detail:
+          type: object
