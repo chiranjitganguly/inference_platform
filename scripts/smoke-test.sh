@@ -78,6 +78,80 @@ probe "POST /v1/chat/completions — unauthenticated" \
     -H "Content-Type: application/json" \
     -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"no auth"}]}'
 
+# ── Streaming probes ──────────────────────────────────────────────────────────
+
+if [[ -n "$SMOKE_API_KEY" ]]; then
+    # Streaming: Content-Type and [DONE] sentinel
+    stream_body='{"model":"gpt-4o-mini","messages":[{"role":"user","content":"say hi"}],"stream":true}'
+    stream_output=$(curl -s --no-buffer -N \
+        --max-time "$TIMEOUT" \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "$stream_body" \
+        "${KONG}/v1/chat/completions" 2>/dev/null)
+    stream_ct=$(curl -s --no-buffer -N \
+        -o /dev/null \
+        -D - \
+        --max-time "$TIMEOUT" \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "$stream_body" \
+        "${KONG}/v1/chat/completions" 2>/dev/null | grep -i "^content-type:" | tr -d '\r')
+
+    if echo "$stream_ct" | grep -qi "text/event-stream"; then
+        ok "POST /v1/chat/completions streaming — Content-Type: text/event-stream"
+    else
+        fail "POST /v1/chat/completions streaming — expected text/event-stream, got: ${stream_ct}"
+    fi
+
+    if echo "$stream_output" | grep -q "^data: \[DONE\]"; then
+        ok "POST /v1/chat/completions streaming — data: [DONE] received"
+    else
+        fail "POST /v1/chat/completions streaming — data: [DONE] not found in stream"
+    fi
+
+    if echo "$stream_output" | grep -q "^data: {"; then
+        ok "POST /v1/chat/completions streaming — at least one JSON chunk received"
+    else
+        fail "POST /v1/chat/completions streaming — no JSON data: chunks found"
+    fi
+
+    # TTFT check: time_starttransfer < 2.0s (SC-001)
+    ttft=$(curl -s --no-buffer -N \
+        -o /dev/null \
+        -w '%{time_starttransfer}' \
+        --max-time "$TIMEOUT" \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "$stream_body" \
+        "${KONG}/v1/chat/completions" 2>/dev/null)
+    # awk comparison: 1 if ttft < 2.0, 0 otherwise
+    ttft_ok=$(awk "BEGIN {print ($ttft < 2.0) ? 1 : 0}")
+    if [[ "$ttft_ok" == "1" ]]; then
+        ok "POST /v1/chat/completions streaming — TTFT ${ttft}s under 2s"
+    else
+        fail "POST /v1/chat/completions streaming — TTFT ${ttft}s exceeds 2s limit"
+    fi
+
+    # Streaming unauthenticated must return 401 (not SSE)
+    stream_unauth_status=$(curl -s -o /dev/null -w '%{http_code}' \
+        --max-time "$TIMEOUT" \
+        -X POST \
+        -H "Content-Type: application/json" \
+        -d "$stream_body" \
+        "${KONG}/v1/chat/completions" 2>/dev/null)
+    if [[ "$stream_unauth_status" == "401" ]]; then
+        ok "POST /v1/chat/completions streaming — unauthenticated returns 401"
+    else
+        fail "POST /v1/chat/completions streaming — unauthenticated expected 401, got ${stream_unauth_status}"
+    fi
+else
+    printf '[SKIP]    POST /v1/chat/completions streaming probes (SMOKE_API_KEY not set)\n'
+fi
+
 # ── Result ────────────────────────────────────────────────────────────────────
 
 printf '\n%d passed, %d failed\n\n' "$pass" "$fail"

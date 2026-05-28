@@ -18,7 +18,7 @@ decision. The invariants there are non-negotiable.
 Current phase and active feature are tracked in `docs/progress.md`.
 
 <!-- SPECKIT START -->
-**Active feature plan:** `specs/005-chat-completion-otel-langfuse/plan.md`
+**Active feature plan:** `specs/006-streaming-sse/plan.md`
 <!-- SPECKIT END -->
 
 ---
