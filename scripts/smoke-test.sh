@@ -214,6 +214,53 @@ else
     printf '[SKIP]    POST /v1/chat/completions cache probes (SMOKE_API_KEY not set)\n'
 fi
 
+# ── Fallback routing probes ───────────────────────────────────────────────────
+# These probes verify the fallback routing infrastructure is correctly wired.
+# They do NOT trigger actual fallback paths (that requires an invalid provider key).
+#
+# Operator workflow to test a full fallback:
+#   1. Set one provider API key to an invalid value in .env
+#   2. make restart svc=litellm
+#   3. Re-run make smoke — the affected model's request will be served by its fallback
+#   4. Restore the key and restart: make restart svc=litellm
+
+if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+    # Probe 1 — model field is present and non-empty in every successful response (FR-004)
+    fallback_resp=$(curl -s --max-time "$TIMEOUT" \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"fallback routing smoke probe"}]}' \
+        "${KONG}/v1/chat/completions" 2>/dev/null)
+    fallback_model=$(printf '%s' "$fallback_resp" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('model',''))" 2>/dev/null)
+
+    if [[ -n "$fallback_model" ]]; then
+        ok "POST /v1/chat/completions fallback — model field present in response: ${fallback_model}"
+    else
+        fail "POST /v1/chat/completions fallback — model field missing or response invalid"
+    fi
+
+    # Probe 2 — valid request returns HTTP 200 (baseline; fallback transparent to caller)
+    fallback_status=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"fallback smoke probe 2"}]}' \
+        "${KONG}/v1/chat/completions" 2>/dev/null)
+
+    if [[ "$fallback_status" == "200" ]]; then
+        ok "POST /v1/chat/completions fallback — HTTP 200 returned for available model"
+    else
+        fail "POST /v1/chat/completions fallback — unexpected HTTP status: ${fallback_status}"
+    fi
+
+    # Probe 3 — 503 body contains error key when all fallbacks are exhausted
+    # (Only verifiable manually with all provider keys invalid — logged here for reference)
+    printf '[INFO]    POST /v1/chat/completions 503 schema probe: run with all keys invalid to verify all_fallbacks_exhausted body\n'
+else
+    printf '[SKIP]    POST /v1/chat/completions fallback probes (SMOKE_API_KEY not set)\n'
+fi
+
 # ── Result ────────────────────────────────────────────────────────────────────
 
 printf '\n%d passed, %d failed\n\n' "$pass" "$fail"

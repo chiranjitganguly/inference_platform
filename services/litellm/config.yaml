@@ -176,6 +176,7 @@ litellm_settings:
     - arize_phoenix
     - langfuse
     - prometheus
+    - fallback_callbacks.FallbackSpanCallback
 
   # Cache non-streaming completions and embeddings only (FR-013).
   # Streaming responses must never be read from or written to the cache.
@@ -196,8 +197,25 @@ litellm_settings:
   fallbacks:
     - gpt-4o:        [claude-sonnet, gemini-pro]
     - gpt-4o-mini:   [claude-haiku, gemini-flash]
+    - gpt-4.1:       [claude-sonnet, gemini-pro]
+    - o4-mini:       [claude-haiku, gemini-flash]
     - claude-sonnet: [gpt-4o, gemini-pro]
+    - claude-haiku:  [gpt-4o-mini, gemini-flash]
+    - gemini-pro:    [gpt-4o, claude-sonnet]
     - gemini-flash:  [gpt-4o-mini, claude-haiku]
+    - command-r-plus: [gpt-4o, claude-sonnet]
+
+  context_window_fallbacks:
+    - gpt-4o:        [gpt-4.1]
+    - gpt-4o-mini:   [gpt-4.1]
+    - o4-mini:       [gpt-4.1]
+    - claude-sonnet: [gemini-pro]
+    - claude-haiku:  [gemini-pro]
+    - command-r-plus: [gpt-4.1]
+
+  num_retries: 2
+  allowed_fails: 3
+  cooldown_time: 60
 
 general_settings:
   database_url: os.environ/DATABASE_URL

@@ -18,7 +18,7 @@ decision. The invariants there are non-negotiable.
 Current phase and active feature are tracked in `docs/progress.md`.
 
 <!-- SPECKIT START -->
-**Active feature plan:** `specs/007-response-caching/plan.md`
+**Active feature plan:** `specs/008-model-fallback-routing/plan.md`
 <!-- SPECKIT END -->
 
 ---
