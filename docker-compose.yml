@@ -1,0 +1,34 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    profiles: [core]
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB:       ${POSTGRES_DB}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+
+# ── Startup ordering for future services ────────────────────────────────────
+#
+# Every service that connects to postgres MUST wait for the healthcheck to
+# pass before starting. Add this block to each dependent service:
+#
+#   depends_on:
+#     postgres:
+#       condition: service_healthy
+#
+# This ensures init-db.sql has finished running before any application
+# service attempts a connection.

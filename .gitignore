@@ -1,1 +1,16 @@
 /venv
+
+# Secrets — never commit
+.env
+
+# macOS
+.DS_Store
+
+# Docker Compose local overrides
+docker-compose.override.yml
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.tmp
