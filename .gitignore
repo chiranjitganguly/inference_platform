@@ -1,4 +1,11 @@
 /venv
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+.ruff_cache/
 
 # Secrets — never commit
 .env

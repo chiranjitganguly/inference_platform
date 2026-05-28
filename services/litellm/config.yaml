@@ -1,0 +1,187 @@
+model_list:
+  # ── OpenAI ──────────────────────────────────────────────────────────────────
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+    model_info:
+      provider: openai
+      tier: premium
+      type: chat
+      status: available
+      context_window: 128000
+      capabilities:
+        - chat
+        - streaming
+        - function-calling
+        - vision
+
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+    model_info:
+      provider: openai
+      tier: standard
+      type: chat
+      status: available
+      context_window: 128000
+      capabilities:
+        - chat
+        - streaming
+        - function-calling
+
+  - model_name: gpt-4.1
+    litellm_params:
+      model: openai/gpt-4.1
+      api_key: os.environ/OPENAI_API_KEY
+    model_info:
+      provider: openai
+      tier: premium
+      type: chat
+      status: available
+      context_window: 1047576
+      capabilities:
+        - chat
+        - streaming
+        - function-calling
+        - vision
+
+  - model_name: o4-mini
+    litellm_params:
+      model: openai/o4-mini
+      api_key: os.environ/OPENAI_API_KEY
+    model_info:
+      provider: openai
+      tier: standard
+      type: chat
+      status: available
+      context_window: 128000
+      capabilities:
+        - chat
+        - streaming
+        - function-calling
+
+  # ── Anthropic ────────────────────────────────────────────────────────────────
+  - model_name: claude-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-4-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+    model_info:
+      provider: anthropic
+      tier: premium
+      type: chat
+      status: available
+      context_window: 200000
+      capabilities:
+        - chat
+        - streaming
+        - function-calling
+        - vision
+
+  - model_name: claude-haiku
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+    model_info:
+      provider: anthropic
+      tier: standard
+      type: chat
+      status: available
+      context_window: 200000
+      capabilities:
+        - chat
+        - streaming
+
+  # ── Google ───────────────────────────────────────────────────────────────────
+  - model_name: gemini-pro
+    litellm_params:
+      model: gemini/gemini-2.0-pro-exp
+      api_key: os.environ/GOOGLE_API_KEY
+    model_info:
+      provider: google
+      tier: premium
+      type: chat
+      status: available
+      context_window: 1048576
+      capabilities:
+        - chat
+        - streaming
+        - function-calling
+        - vision
+
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: os.environ/GOOGLE_API_KEY
+    model_info:
+      provider: google
+      tier: standard
+      type: chat
+      status: available
+      context_window: 1048576
+      capabilities:
+        - chat
+        - streaming
+        - function-calling
+
+  # ── Cohere ───────────────────────────────────────────────────────────────────
+  - model_name: command-r-plus
+    litellm_params:
+      model: cohere/command-r-plus
+      api_key: os.environ/COHERE_API_KEY
+    model_info:
+      provider: cohere
+      tier: premium
+      type: chat
+      status: available
+      context_window: 128000
+      capabilities:
+        - chat
+        - streaming
+        - function-calling
+
+  # ── OpenAI Embeddings ────────────────────────────────────────────────────────
+  - model_name: text-embedding-3-small
+    litellm_params:
+      model: openai/text-embedding-3-small
+      api_key: os.environ/OPENAI_API_KEY
+    model_info:
+      provider: openai
+      tier: standard
+      type: embedding
+      status: available
+      context_window: 8191
+      capabilities:
+        - embeddings
+      dimensions: 1536
+
+  - model_name: text-embedding-3-large
+    litellm_params:
+      model: openai/text-embedding-3-large
+      api_key: os.environ/OPENAI_API_KEY
+    model_info:
+      provider: openai
+      tier: premium
+      type: embedding
+      status: available
+      context_window: 8191
+      capabilities:
+        - embeddings
+      dimensions: 3072
+
+litellm_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  callbacks:
+    - arize_phoenix
+    - langfuse
+    - prometheus
+
+  fallbacks:
+    - gpt-4o:        [claude-sonnet, gemini-pro]
+    - gpt-4o-mini:   [claude-haiku, gemini-flash]
+    - claude-sonnet: [gpt-4o, gemini-pro]
+    - gemini-flash:  [gpt-4o-mini, claude-haiku]
+
+general_settings:
+  database_url: os.environ/DATABASE_URL

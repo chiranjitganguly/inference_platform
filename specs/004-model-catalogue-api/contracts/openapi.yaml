@@ -1,0 +1,182 @@
+openapi: "3.1.0"
+
+info:
+  title: Model Catalogue API
+  version: "1"
+  description: >
+    Returns the list of all AI models available on the platform.
+    Follows the OpenAI /v1/models envelope with platform-specific
+    metadata nested inside model_info on each entry.
+
+servers:
+  - url: http://localhost:8080
+    description: Local development (Kong gateway)
+
+security:
+  - BearerAuth: []
+
+paths:
+  /v1/models:
+    get:
+      operationId: listModels
+      summary: List all available models
+      description: >
+        Returns all 11 platform models across OpenAI, Anthropic, Google,
+        and Cohere. Includes models with status unavailable. Requests
+        without a valid API key are rejected with 401.
+      responses:
+        "200":
+          description: Model catalogue returned successfully
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
+              description: End-to-end request correlation ID attached by Kong
+            X-Platform:
+              schema:
+                type: string
+                enum: [inference-platform]
+            X-API-Version:
+              schema:
+                type: string
+                enum: ["1"]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelList"
+              example:
+                object: list
+                data:
+                  - id: gpt-4o
+                    object: model
+                    created: 1677610602
+                    owned_by: openai
+                    model_info:
+                      provider: openai
+                      tier: premium
+                      type: chat
+                      status: available
+                      context_window: 128000
+                      capabilities:
+                        - chat
+                        - streaming
+                        - function-calling
+                        - vision
+                  - id: text-embedding-3-large
+                    object: model
+                    created: 1677610602
+                    owned_by: openai
+                    model_info:
+                      provider: openai
+                      tier: premium
+                      type: embedding
+                      status: available
+                      context_window: 8191
+                      capabilities:
+                        - embeddings
+                      dimensions: 3072
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: unauthorized
+                message: "No API key found in request"
+                detail: {}
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+
+  schemas:
+    ModelList:
+      type: object
+      required: [object, data]
+      properties:
+        object:
+          type: string
+          enum: [list]
+        data:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ModelEntry"
+
+    ModelEntry:
+      type: object
+      required: [id, object, created, owned_by, model_info]
+      properties:
+        id:
+          type: string
+          description: Platform model identifier
+        object:
+          type: string
+          enum: [model]
+        created:
+          type: integer
+          description: Unix timestamp
+        owned_by:
+          type: string
+          description: OpenAI envelope field — provider name
+        model_info:
+          $ref: "#/components/schemas/ModelInfo"
+
+    ModelInfo:
+      type: object
+      required: [provider, tier, type, status, context_window, capabilities]
+      properties:
+        provider:
+          type: string
+          enum: [openai, anthropic, google, cohere]
+        tier:
+          type: string
+          enum: [standard, premium]
+        type:
+          type: string
+          enum: [chat, embedding]
+        status:
+          type: string
+          enum: [available, unavailable]
+        context_window:
+          type: integer
+          minimum: 1
+          description: Maximum token count (input + output combined)
+        capabilities:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            enum: [chat, streaming, function-calling, vision, embeddings]
+        dimensions:
+          type: integer
+          minimum: 1
+          description: >
+            Output vector size. Present if and only if type is embedding.
+      if:
+        properties:
+          type:
+            const: embedding
+      then:
+        required: [dimensions]
+      else:
+        not:
+          required: [dimensions]
+
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code
+        message:
+          type: string
+          description: Human-readable description
+        detail:
+          type: object
+          description: Additional context
