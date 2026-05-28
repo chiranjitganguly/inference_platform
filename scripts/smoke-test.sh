@@ -59,6 +59,25 @@ fi
 # LiteLLM health endpoint proxied through Kong (no auth required on /health)
 probe "LiteLLM /v1/health via Kong"  "${KONG}/v1/health"  200
 
+# POST /v1/chat/completions — authenticated request returns 200
+if [[ -n "$SMOKE_API_KEY" ]]; then
+    probe "POST /v1/chat/completions — authenticated" \
+        "${KONG}/v1/chat/completions" 200 \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"smoke test"}]}'
+else
+    printf '[SKIP]    POST /v1/chat/completions — authenticated (SMOKE_API_KEY not set)\n'
+fi
+
+# POST /v1/chat/completions — unauthenticated must return 401
+probe "POST /v1/chat/completions — unauthenticated" \
+    "${KONG}/v1/chat/completions" 401 \
+    -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"no auth"}]}'
+
 # ── Result ────────────────────────────────────────────────────────────────────
 
 printf '\n%d passed, %d failed\n\n' "$pass" "$fail"
