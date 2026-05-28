@@ -183,6 +183,10 @@ litellm_settings:
   cache: true
   cache_params:
     type: redis
+    host: redis-cache
+    port: 6379
+    namespace: llm_cache
+    ttl: os.environ/LITELLM_CACHE_TTL
     supported_call_types:
       - acompletion
       - completion

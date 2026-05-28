@@ -152,6 +152,68 @@ else
     printf '[SKIP]    POST /v1/chat/completions streaming probes (SMOKE_API_KEY not set)\n'
 fi
 
+# ── Caching probes ────────────────────────────────────────────────────────────
+
+if [[ -n "$SMOKE_API_KEY" ]]; then
+    cache_body='{"model":"gpt-4o-mini","messages":[{"role":"user","content":"cache smoke test probe"}],"temperature":0.0}'
+
+    # First request — must be a cache miss (x-litellm-cache-hit: False or absent)
+    cache_first_headers=$(curl -s \
+        -D - \
+        -o /dev/null \
+        --max-time "$TIMEOUT" \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "$cache_body" \
+        "${KONG}/v1/chat/completions" 2>/dev/null | tr -d '\r')
+    cache_first_hit=$(echo "$cache_first_headers" | grep -i "^x-litellm-cache-hit:" | awk '{print $2}')
+
+    if [[ "$cache_first_hit" != "True" ]]; then
+        ok "POST /v1/chat/completions cache — first request is cache miss"
+    else
+        fail "POST /v1/chat/completions cache — first request returned cache hit (expected miss)"
+    fi
+
+    # Second identical request — must be a cache hit (x-litellm-cache-hit: True)
+    cache_second_headers=$(curl -s \
+        -D - \
+        -o /dev/null \
+        --max-time "$TIMEOUT" \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "$cache_body" \
+        "${KONG}/v1/chat/completions" 2>/dev/null | tr -d '\r')
+    cache_second_hit=$(echo "$cache_second_headers" | grep -i "^x-litellm-cache-hit:" | awk '{print $2}')
+
+    if [[ "$cache_second_hit" == "True" ]]; then
+        ok "POST /v1/chat/completions cache — second request is cache hit (x-litellm-cache-hit: True)"
+    else
+        fail "POST /v1/chat/completions cache — second identical request expected cache hit, got: ${cache_second_hit:-absent}"
+    fi
+
+    # Streaming request — cache bypass (x-litellm-cache-hit must NOT be True)
+    stream_cache_headers=$(curl -s --no-buffer -N \
+        -D - \
+        -o /dev/null \
+        --max-time "$TIMEOUT" \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"cache smoke test probe"}],"temperature":0.0,"stream":true}' \
+        "${KONG}/v1/chat/completions" 2>/dev/null | tr -d '\r')
+    stream_cache_hit=$(echo "$stream_cache_headers" | grep -i "^x-litellm-cache-hit:" | awk '{print $2}')
+
+    if [[ "$stream_cache_hit" != "True" ]]; then
+        ok "POST /v1/chat/completions streaming — cache bypass confirmed (no cache-hit header)"
+    else
+        fail "POST /v1/chat/completions streaming — unexpected cache hit on streaming request"
+    fi
+else
+    printf '[SKIP]    POST /v1/chat/completions cache probes (SMOKE_API_KEY not set)\n'
+fi
+
 # ── Result ────────────────────────────────────────────────────────────────────
 
 printf '\n%d passed, %d failed\n\n' "$pass" "$fail"
