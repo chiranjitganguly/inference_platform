@@ -1,0 +1,234 @@
+openapi: "3.1.0"
+info:
+  title: Inference Platform — Fallback Routing Contract
+  version: "1.0.0"
+  description: |
+    Contract additions for feature 008: automatic model fallback routing.
+
+    Changes to existing endpoint POST /v1/chat/completions:
+    - `model` field in successful response MUST reflect the model that fulfilled
+      the request (may differ from the requested model when fallback occurs).
+    - HTTP 503 response body is now structured (was previously LiteLLM-native format).
+
+    No new endpoints are introduced by this feature.
+
+paths:
+  /v1/chat/completions:
+    post:
+      summary: Chat completion (extended with fallback routing)
+      description: |
+        Existing endpoint. When the requested model fails, the platform silently
+        retries on configured fallback models. The response `model` field always
+        reflects the model that actually fulfilled the request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatCompletionRequest"
+            examples:
+              standard:
+                summary: Standard request — may be served by fallback
+                value:
+                  model: "gpt-4o"
+                  messages:
+                    - role: "user"
+                      content: "Hello"
+      responses:
+        "200":
+          description: |
+            Successful completion. When a fallback was used, `model` reflects the
+            fallback model, not the originally requested model. The response is
+            otherwise identical to a primary model response.
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+              description: Correlation ID for this request (attached by Kong).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatCompletionResponse"
+              examples:
+                primary_fulfilled:
+                  summary: Primary model fulfilled the request
+                  value:
+                    id: "chatcmpl-abc123"
+                    object: "chat.completion"
+                    model: "gpt-4o"
+                    choices:
+                      - index: 0
+                        message:
+                          role: "assistant"
+                          content: "Hello! How can I help you today?"
+                        finish_reason: "stop"
+                    usage:
+                      prompt_tokens: 10
+                      completion_tokens: 12
+                      total_tokens: 22
+                fallback_fulfilled:
+                  summary: Fallback model fulfilled the request (model field differs)
+                  value:
+                    id: "chatcmpl-xyz789"
+                    object: "chat.completion"
+                    model: "claude-sonnet"
+                    choices:
+                      - index: 0
+                        message:
+                          role: "assistant"
+                          content: "Hello! How can I help you today?"
+                        finish_reason: "stop"
+                    usage:
+                      prompt_tokens: 10
+                      completion_tokens: 12
+                      total_tokens: 22
+
+        "503":
+          description: |
+            All models in the fallback chain (primary + all configured backups) are
+            unavailable or in cooldown. The body follows the platform's standard
+            structured error schema.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExhaustedError"
+              examples:
+                all_exhausted:
+                  summary: All fallbacks exhausted
+                  value:
+                    error: "all_fallbacks_exhausted"
+                    message: "All models in the fallback chain are unavailable."
+                    detail:
+                      requested_model: "gpt-4o"
+                      models_attempted: ["gpt-4o", "claude-sonnet", "gemini-pro"]
+                      failure_reasons:
+                        gpt-4o: "provider_error"
+                        claude-sonnet: "timeout"
+                        gemini-pro: "provider_error"
+
+        "400":
+          description: Malformed request or guardrail block (unchanged from prior features).
+        "401":
+          description: Missing or invalid authentication (unchanged).
+        "429":
+          description: Rate limit or budget exceeded (unchanged).
+
+components:
+  schemas:
+    ChatCompletionRequest:
+      type: object
+      required:
+        - model
+        - messages
+      properties:
+        model:
+          type: string
+          description: |
+            The model alias to request. If this model fails and a fallback chain
+            is configured, the platform retries on backup models automatically.
+          example: "gpt-4o"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        temperature:
+          type: number
+          minimum: 0
+          maximum: 2
+          default: 1.0
+        stream:
+          type: boolean
+          default: false
+
+    Message:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant]
+        content:
+          type: string
+
+    ChatCompletionResponse:
+      type: object
+      required:
+        - id
+        - object
+        - model
+        - choices
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+          enum: [chat.completion]
+        model:
+          type: string
+          description: |
+            The model that actually fulfilled this request. When a fallback occurred,
+            this field contains the fallback model alias, NOT the originally requested
+            model alias. Callers must use this field for spend attribution.
+        choices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Choice"
+        usage:
+          $ref: "#/components/schemas/Usage"
+
+    Choice:
+      type: object
+      properties:
+        index:
+          type: integer
+        message:
+          $ref: "#/components/schemas/Message"
+        finish_reason:
+          type: string
+          enum: [stop, length, content_filter, tool_calls]
+
+    Usage:
+      type: object
+      properties:
+        prompt_tokens:
+          type: integer
+        completion_tokens:
+          type: integer
+        total_tokens:
+          type: integer
+
+    ExhaustedError:
+      type: object
+      required:
+        - error
+        - message
+        - detail
+      description: |
+        Returned when all models in the fallback chain are unavailable.
+        Follows the platform's standard structured error schema (constitution §4.4).
+      properties:
+        error:
+          type: string
+          enum: [all_fallbacks_exhausted]
+        message:
+          type: string
+          example: "All models in the fallback chain are unavailable."
+        detail:
+          type: object
+          properties:
+            requested_model:
+              type: string
+              description: The model alias originally requested by the caller.
+            models_attempted:
+              type: array
+              items:
+                type: string
+              description: All model aliases attempted, in order.
+            failure_reasons:
+              type: object
+              additionalProperties:
+                type: string
+                enum: [provider_error, timeout, context_overflow, cooldown]
+              description: Failure reason per model alias attempted.

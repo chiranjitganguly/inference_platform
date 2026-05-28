@@ -33,6 +33,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT:     ${OTEL_EXPORTER_OTLP_ENDPOINT}
     volumes:
       - ./services/litellm/config.yaml:/app/config.yaml:ro
+      - ./services/litellm/fallback_callbacks.py:/app/fallback_callbacks.py:ro
     command: ["--config", "/app/config.yaml", "--port", "4000", "--detailed_debug"]
     # Port 4000 has no host binding — all traffic via Kong :8080 (constitution §2.1)
     expose:
