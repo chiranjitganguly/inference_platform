@@ -17,6 +17,10 @@ decision. The invariants there are non-negotiable.
 **Phase plan:** 10 phases, one feature at a time via SpecKit.
 Current phase and active feature are tracked in `docs/progress.md`.
 
+<!-- SPECKIT START -->
+**Active feature plan:** `specs/002-developer-makefile/plan.md`
+<!-- SPECKIT END -->
+
 ---
 
 ## Repository layout (memorise this)
