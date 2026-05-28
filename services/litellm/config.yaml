@@ -177,6 +177,18 @@ litellm_settings:
     - langfuse
     - prometheus
 
+  # Cache non-streaming completions and embeddings only (FR-013).
+  # Streaming responses must never be read from or written to the cache.
+  # Omitting streaming call types here enforces this regardless of LiteLLM patch version.
+  cache: true
+  cache_params:
+    type: redis
+    supported_call_types:
+      - acompletion
+      - completion
+      - aembedding
+      - embedding
+
   fallbacks:
     - gpt-4o:        [claude-sonnet, gemini-pro]
     - gpt-4o-mini:   [claude-haiku, gemini-flash]
