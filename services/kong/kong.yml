@@ -21,6 +21,14 @@ services:
     write_timeout:   60000
 
     routes:
+      # Health check — unauthenticated; required by load balancers and Docker HEALTHCHECK
+      - name: litellm-health
+        paths:
+          - /health
+        methods:
+          - GET
+        strip_path: false
+
       # Model catalogue — read-only metadata, Kong → LiteLLM direct (no guardrails)
       - name: models-catalogue
         paths:
