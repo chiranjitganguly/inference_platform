@@ -52,22 +52,44 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  kong-migration:
+    image: kong:3.6
+    profiles: [core]
+    environment:
+      KONG_DATABASE:    postgres
+      KONG_PG_HOST:     postgres
+      KONG_PG_PORT:     "5432"
+      KONG_PG_DATABASE: kong
+      KONG_PG_USER:     ${POSTGRES_USER}
+      KONG_PG_PASSWORD: ${POSTGRES_PASSWORD}
+    command: >
+      sh -c "kong migrations bootstrap 2>/dev/null || true && kong migrations up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
   kong:
     image: kong:3.6
     profiles: [core]
     environment:
-      KONG_DATABASE:           "off"
-      KONG_DECLARATIVE_CONFIG: /etc/kong/declarative/kong.yml
-      KONG_PROXY_LISTEN:       "0.0.0.0:8080"
-      KONG_ADMIN_LISTEN:       "127.0.0.1:8001"
-      KONG_LOG_LEVEL:          notice
-      SMOKE_API_KEY:           ${SMOKE_API_KEY}
-    volumes:
-      - ./services/kong/kong.yml:/etc/kong/declarative/kong.yml:ro
+      KONG_DATABASE:    postgres
+      KONG_PG_HOST:     postgres
+      KONG_PG_PORT:     "5432"
+      KONG_PG_DATABASE: kong
+      KONG_PG_USER:     ${POSTGRES_USER}
+      KONG_PG_PASSWORD: ${POSTGRES_PASSWORD}
+      KONG_PROXY_LISTEN: "0.0.0.0:8080"
+      KONG_ADMIN_LISTEN: "127.0.0.1:8001"
+      KONG_LOG_LEVEL:    notice
     ports:
       - "8080:8080"   # Kong proxy — the only public port (constitution §2.1)
       - "8001:8001"   # Kong admin — localhost only
     depends_on:
+      postgres:
+        condition: service_healthy
+      kong-migration:
+        condition: service_completed_successfully
       litellm:
         condition: service_healthy
     healthcheck:
@@ -108,10 +130,9 @@ services:
       --maxmemory-policy allkeys-lru
       --save ""
       --appendonly no
+    # Port 6379 has no host binding — internal only (constitution §2.1)
     expose:
       - "6379"
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -129,10 +150,9 @@ services:
       --maxmemory-policy noeviction
       --save ""
       --appendonly no
+    # Port 6380 has no host binding — internal only (constitution §2.1)
     expose:
       - "6380"
-    ports:
-      - "6380:6380"
     healthcheck:
       test: ["CMD", "redis-cli", "-p", "6380", "ping"]
       interval: 5s
