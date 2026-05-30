@@ -261,6 +261,91 @@ else
     printf '[SKIP]    POST /v1/chat/completions fallback probes (SMOKE_API_KEY not set)\n'
 fi
 
+# ── Key management probes (T008) ─────────────────────────────────────────────
+
+# POST /v1/key/generate unauthenticated → 401 (LiteLLM enforces master key)
+probe "POST /v1/key/generate — unauthenticated" \
+    "${KONG}/v1/key/generate" 401 \
+    -X POST \
+    -H "Content-Type: application/json" \
+    -d '{}'
+
+# POST /v1/key/generate with master key → 200 + key field present
+if [[ -n "${LITELLM_MASTER_KEY:-}" ]]; then
+    key_resp=$(curl -s --max-time "$TIMEOUT" \
+        -X POST \
+        -H "Authorization: Bearer ${LITELLM_MASTER_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"key_alias":"smoke-key","max_budget":0.001,"budget_duration":"monthly"}' \
+        "${KONG}/v1/key/generate" 2>/dev/null)
+    key_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time "$TIMEOUT" \
+        -X POST \
+        -H "Authorization: Bearer ${LITELLM_MASTER_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"key_alias":"smoke-key-check","max_budget":0.001,"budget_duration":"monthly"}' \
+        "${KONG}/v1/key/generate" 2>/dev/null)
+    if [[ "$key_status" == "200" ]]; then
+        ok "POST /v1/key/generate — master key creates key (HTTP 200)"
+    else
+        fail "POST /v1/key/generate — expected 200, got ${key_status}"
+    fi
+else
+    printf '[SKIP]    POST /v1/key/generate — master key probe (LITELLM_MASTER_KEY not set)\n'
+fi
+
+# ── Spend report probes (T015) ────────────────────────────────────────────────
+
+# GET /v1/spend unauthenticated → 401
+probe "GET /v1/spend — unauthenticated" "${KONG}/v1/spend" 401
+
+# GET /v1/spend with master key → 200 + required fields
+if [[ -n "${LITELLM_MASTER_KEY:-}" ]]; then
+    spend_resp=$(curl -s --max-time "$TIMEOUT" \
+        -H "Authorization: Bearer ${LITELLM_MASTER_KEY}" \
+        "${KONG}/v1/spend" 2>/dev/null)
+    spend_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time "$TIMEOUT" \
+        -H "Authorization: Bearer ${LITELLM_MASTER_KEY}" \
+        "${KONG}/v1/spend" 2>/dev/null)
+    if [[ "$spend_status" == "200" ]] && echo "$spend_resp" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+assert 'total_spend_usd' in d
+assert isinstance(d.get('by_model'), list)
+assert isinstance(d.get('by_key'), list)
+" 2>/dev/null; then
+        ok "GET /v1/spend — master key returns required fields (HTTP 200)"
+    else
+        fail "GET /v1/spend — expected 200 + required fields, got HTTP ${spend_status}: ${spend_resp}"
+    fi
+else
+    printf '[SKIP]    GET /v1/spend — master key probe (LITELLM_MASTER_KEY not set)\n'
+fi
+
+# ── Langfuse metadata probe (T018) ───────────────────────────────────────────
+
+if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+    langfuse_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time "$TIMEOUT" \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "gpt-4o-mini",
+          "messages": [{"role": "user", "content": "smoke probe"}],
+          "metadata": {
+            "langfuse_prompt_name": "smoke-test",
+            "langfuse_prompt_version": "1"
+          }
+        }' \
+        "${KONG}/v1/chat/completions" 2>/dev/null)
+    if [[ "$langfuse_status" == "200" ]]; then
+        ok "POST /v1/chat/completions with Langfuse metadata — HTTP 200 (trace cost visible in Langfuse UI)"
+    else
+        fail "POST /v1/chat/completions with Langfuse metadata — expected 200, got ${langfuse_status}"
+    fi
+else
+    printf '[SKIP]    Langfuse metadata probe (SMOKE_API_KEY not set)\n'
+fi
+
 # ── Result ────────────────────────────────────────────────────────────────────
 
 printf '\n%d passed, %d failed\n\n' "$pass" "$fail"

@@ -52,6 +52,38 @@ services:
               key_in_header: true
               hide_credentials: true
 
+  # ── portal-backend — spend report (master key validated via LiteLLM proxy) ──
+  - name: portal-backend
+    url: http://portal-backend:8092
+    connect_timeout: 10000
+    read_timeout:    15000
+    write_timeout:   15000
+
+    routes:
+      - name: spend-report
+        paths:
+          - /v1/spend
+        methods:
+          - GET
+        strip_path: false
+
+  # ── LiteLLM admin — key management (master key enforced by LiteLLM itself) ──
+  - name: litellm-admin
+    url: http://litellm:4000
+    connect_timeout: 10000
+    read_timeout:    30000
+    write_timeout:   30000
+
+    routes:
+      - name: litellm-key-manage
+        paths:
+          - /v1/key
+        methods:
+          - GET
+          - POST
+          - DELETE
+        strip_path: true
+
 # ── Global Plugins ────────────────────────────────────────────────────────────
 
 plugins:
