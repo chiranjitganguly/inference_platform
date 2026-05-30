@@ -6,7 +6,7 @@ model_list:
       api_key: os.environ/OPENAI_API_KEY
     model_info:
       provider: openai
-      tier: premium
+      tier: paid
       type: chat
       status: available
       context_window: 128000
@@ -22,7 +22,7 @@ model_list:
       api_key: os.environ/OPENAI_API_KEY
     model_info:
       provider: openai
-      tier: standard
+      tier: paid
       type: chat
       status: available
       context_window: 128000
@@ -37,7 +37,7 @@ model_list:
       api_key: os.environ/OPENAI_API_KEY
     model_info:
       provider: openai
-      tier: premium
+      tier: paid
       type: chat
       status: available
       context_window: 1047576
@@ -53,7 +53,7 @@ model_list:
       api_key: os.environ/OPENAI_API_KEY
     model_info:
       provider: openai
-      tier: standard
+      tier: paid
       type: chat
       status: available
       context_window: 128000
@@ -69,7 +69,7 @@ model_list:
       api_key: os.environ/ANTHROPIC_API_KEY
     model_info:
       provider: anthropic
-      tier: premium
+      tier: paid
       type: chat
       status: available
       context_window: 200000
@@ -85,7 +85,7 @@ model_list:
       api_key: os.environ/ANTHROPIC_API_KEY
     model_info:
       provider: anthropic
-      tier: standard
+      tier: paid
       type: chat
       status: available
       context_window: 200000
@@ -100,7 +100,7 @@ model_list:
       api_key: os.environ/GOOGLE_API_KEY
     model_info:
       provider: google
-      tier: premium
+      tier: paid
       type: chat
       status: available
       context_window: 1048576
@@ -116,7 +116,7 @@ model_list:
       api_key: os.environ/GOOGLE_API_KEY
     model_info:
       provider: google
-      tier: standard
+      tier: paid
       type: chat
       status: available
       context_window: 1048576
@@ -132,7 +132,7 @@ model_list:
       api_key: os.environ/COHERE_API_KEY
     model_info:
       provider: cohere
-      tier: premium
+      tier: paid
       type: chat
       status: available
       context_window: 128000
@@ -148,7 +148,7 @@ model_list:
       api_key: os.environ/OPENAI_API_KEY
     model_info:
       provider: openai
-      tier: standard
+      tier: paid
       type: embedding
       status: available
       context_window: 8191
@@ -162,7 +162,7 @@ model_list:
       api_key: os.environ/OPENAI_API_KEY
     model_info:
       provider: openai
-      tier: premium
+      tier: paid
       type: embedding
       status: available
       context_window: 8191
@@ -172,11 +172,10 @@ model_list:
 
 litellm_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
-  callbacks:
-    - arize_phoenix
-    - langfuse
-    - prometheus
-    - fallback_callbacks.FallbackSpanCallback
+  # callbacks: [arize_phoenix, langfuse, prometheus, fallback_callbacks.FallbackSpanCallback]
+  # Disabled for core-profile local dev: arize_phoenix/langfuse are unknown to
+  # LiteLLM v1.52.0 (added in later releases); prometheus requires Enterprise license.
+  # Re-enable when running with the obs profile and a valid LITELLM_LICENSE.
 
   # Cache non-streaming completions and embeddings only (FR-013).
   # Streaming responses must never be read from or written to the cache.
