@@ -23,6 +23,7 @@ services:
     profiles: [core]
     environment:
       LITELLM_MASTER_KEY:             ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY:               ${LITELLM_SALT_KEY}
       OPENAI_API_KEY:                  ${OPENAI_API_KEY}
       ANTHROPIC_API_KEY:               ${ANTHROPIC_API_KEY}
       GOOGLE_API_KEY:                  ${GOOGLE_API_KEY}
@@ -74,6 +75,27 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  portal-backend:
+    build:
+      context: ./services/portal-backend
+      dockerfile: Dockerfile
+    profiles: [core]
+    environment:
+      LITELLM_BASE_URL:   http://litellm:4000
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+    expose:
+      - "8092"
+    depends_on:
+      litellm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8092/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
       start_period: 15s
     restart: unless-stopped
 
