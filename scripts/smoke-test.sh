@@ -321,6 +321,130 @@ else
     printf '[SKIP]    GET /v1/spend — master key probe (LITELLM_MASTER_KEY not set)\n'
 fi
 
+# ── Embeddings probes (feature 011) ──────────────────────────────────────────
+
+if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+    # US1-a: text-embedding-3-small → 1536-element float array
+    embed_small_dims=$(curl -s --max-time 15 \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"text-embedding-3-small","input":"smoke test embedding"}' \
+        "${KONG}/v1/embeddings" 2>/dev/null \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d['data'][0]['embedding']))" 2>/dev/null)
+    if [[ "$embed_small_dims" == "1536" ]]; then
+        ok "POST /v1/embeddings text-embedding-3-small — 1536 dimensions"
+    else
+        fail "POST /v1/embeddings text-embedding-3-small — expected 1536 dims, got: ${embed_small_dims:-error}"
+    fi
+
+    # US3: token usage fields present and non-zero in every successful embedding response
+    embed_tokens=$(curl -s --max-time 15 \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"text-embedding-3-small","input":"token usage verification"}' \
+        "${KONG}/v1/embeddings" 2>/dev/null \
+        | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+pt = d.get('usage', {}).get('prompt_tokens', 0)
+tt = d.get('usage', {}).get('total_tokens', 0)
+print('ok' if pt > 0 and tt > 0 else f'fail pt={pt} tt={tt}')
+" 2>/dev/null)
+    if [[ "$embed_tokens" == "ok" ]]; then
+        ok "POST /v1/embeddings — usage.prompt_tokens and usage.total_tokens present and non-zero"
+    else
+        fail "POST /v1/embeddings — token usage check failed: ${embed_tokens:-error}"
+    fi
+
+    # US1-b: text-embedding-3-large → 3072-element float array
+    embed_large_dims=$(curl -s --max-time 15 \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"text-embedding-3-large","input":"smoke test embedding"}' \
+        "${KONG}/v1/embeddings" 2>/dev/null \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d['data'][0]['embedding']))" 2>/dev/null)
+    if [[ "$embed_large_dims" == "3072" ]]; then
+        ok "POST /v1/embeddings text-embedding-3-large — 3072 dimensions"
+    else
+        fail "POST /v1/embeddings text-embedding-3-large — expected 3072 dims, got: ${embed_large_dims:-error}"
+    fi
+
+    # US2-a: chat model on /v1/embeddings → HTTP 400 (model type rejection)
+    embed_chat_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"gpt-4o","input":"reject me"}' \
+        "${KONG}/v1/embeddings" 2>/dev/null)
+    if [[ "$embed_chat_status" == "400" ]]; then
+        ok "POST /v1/embeddings gpt-4o — chat model rejected (HTTP 400)"
+    else
+        fail "POST /v1/embeddings gpt-4o — expected HTTP 400, got: ${embed_chat_status}"
+    fi
+
+    # US2-b: Anthropic chat model on /v1/embeddings → HTTP 400
+    embed_anthropic_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"claude-sonnet","input":"reject me"}' \
+        "${KONG}/v1/embeddings" 2>/dev/null)
+    if [[ "$embed_anthropic_status" == "400" ]]; then
+        ok "POST /v1/embeddings claude-sonnet — chat model rejected (HTTP 400)"
+    else
+        fail "POST /v1/embeddings claude-sonnet — expected HTTP 400, got: ${embed_anthropic_status}"
+    fi
+
+    # SC-006: cache bypass — identical embedding requests must never return a cache hit
+    embed_cache_body='{"model":"text-embedding-3-small","input":"cache bypass verification probe"}'
+    embed_cache_hit_1=$(curl -s --max-time 15 \
+        -D - -o /dev/null \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "$embed_cache_body" \
+        "${KONG}/v1/embeddings" 2>/dev/null | tr -d '\r' \
+        | grep -i "^x-litellm-cache-hit:" | awk '{print $2}')
+    embed_cache_hit_2=$(curl -s --max-time 15 \
+        -D - -o /dev/null \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "$embed_cache_body" \
+        "${KONG}/v1/embeddings" 2>/dev/null | tr -d '\r' \
+        | grep -i "^x-litellm-cache-hit:" | awk '{print $2}')
+    if [[ "$embed_cache_hit_1" != "True" && "$embed_cache_hit_2" != "True" ]]; then
+        ok "POST /v1/embeddings — cache bypass confirmed (no cache-hit header on either request)"
+    else
+        fail "POST /v1/embeddings — cache hit detected on embedding request (expected bypass): hit1=${embed_cache_hit_1:-absent} hit2=${embed_cache_hit_2:-absent}"
+    fi
+
+    # US1-c: batch of 3 inputs → 3 objects, correct index ordering
+    embed_batch=$(curl -s --max-time 15 \
+        -X POST \
+        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"text-embedding-3-small","input":["first","second","third"]}' \
+        "${KONG}/v1/embeddings" 2>/dev/null \
+        | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+count = len(d['data'])
+first_index = d['data'][0]['index']
+print(f'{count},{first_index}')
+" 2>/dev/null)
+    if [[ "$embed_batch" == "3,0" ]]; then
+        ok "POST /v1/embeddings batch — 3 objects returned, index 0 first"
+    else
+        fail "POST /v1/embeddings batch — expected count=3,index=0, got: ${embed_batch:-error}"
+    fi
+else
+    printf '[SKIP]    POST /v1/embeddings probes (SMOKE_API_KEY not set)\n'
+fi
+
 # ── Langfuse metadata probe (T018) ───────────────────────────────────────────
 
 if [[ -n "${SMOKE_API_KEY:-}" ]]; then
