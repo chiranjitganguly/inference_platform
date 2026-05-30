@@ -1,1 +1,3 @@
-{"feature_directory": "specs/010-health-endpoint"}
+{
+  "feature_directory": "specs/012-kong-api-gateway-auth"
+}
