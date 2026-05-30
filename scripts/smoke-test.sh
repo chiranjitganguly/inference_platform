@@ -51,20 +51,20 @@ probe "LiteLLM /v1/models — unauthenticated" "${KONG}/v1/models" 401
 if [[ -n "$SMOKE_API_KEY" ]]; then
     probe "LiteLLM /v1/models via Kong — authenticated" \
         "${KONG}/v1/models" 200 \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}"
+        -H "Authorization: ${SMOKE_API_KEY}"
 else
     printf '[SKIP]    LiteLLM /v1/models — authenticated (SMOKE_API_KEY not set)\n'
 fi
 
-# LiteLLM health endpoint proxied through Kong (no auth required on /health)
-probe "LiteLLM /v1/health via Kong"  "${KONG}/v1/health"  200
+# Health endpoint — no auth required (US3: unauthenticated liveness probe)
+probe "GET /health via Kong — no auth" "${KONG}/health" 200
 
 # POST /v1/chat/completions — authenticated request returns 200
 if [[ -n "$SMOKE_API_KEY" ]]; then
     probe "POST /v1/chat/completions — authenticated" \
         "${KONG}/v1/chat/completions" 200 \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"smoke test"}]}'
 else
@@ -86,7 +86,7 @@ if [[ -n "$SMOKE_API_KEY" ]]; then
     stream_output=$(curl -s --no-buffer -N \
         --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d "$stream_body" \
         "${KONG}/v1/chat/completions" 2>/dev/null)
@@ -95,7 +95,7 @@ if [[ -n "$SMOKE_API_KEY" ]]; then
         -D - \
         --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d "$stream_body" \
         "${KONG}/v1/chat/completions" 2>/dev/null | grep -i "^content-type:" | tr -d '\r')
@@ -124,7 +124,7 @@ if [[ -n "$SMOKE_API_KEY" ]]; then
         -w '%{time_starttransfer}' \
         --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d "$stream_body" \
         "${KONG}/v1/chat/completions" 2>/dev/null)
@@ -163,7 +163,7 @@ if [[ -n "$SMOKE_API_KEY" ]]; then
         -o /dev/null \
         --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d "$cache_body" \
         "${KONG}/v1/chat/completions" 2>/dev/null | tr -d '\r')
@@ -181,7 +181,7 @@ if [[ -n "$SMOKE_API_KEY" ]]; then
         -o /dev/null \
         --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d "$cache_body" \
         "${KONG}/v1/chat/completions" 2>/dev/null | tr -d '\r')
@@ -199,7 +199,7 @@ if [[ -n "$SMOKE_API_KEY" ]]; then
         -o /dev/null \
         --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"cache smoke test probe"}],"temperature":0.0,"stream":true}' \
         "${KONG}/v1/chat/completions" 2>/dev/null | tr -d '\r')
@@ -228,7 +228,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # Probe 1 — model field is present and non-empty in every successful response (FR-004)
     fallback_resp=$(curl -s --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"fallback routing smoke probe"}]}' \
         "${KONG}/v1/chat/completions" 2>/dev/null)
@@ -243,7 +243,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # Probe 2 — valid request returns HTTP 200 (baseline; fallback transparent to caller)
     fallback_status=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"fallback smoke probe 2"}]}' \
         "${KONG}/v1/chat/completions" 2>/dev/null)
@@ -327,7 +327,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # US1-a: text-embedding-3-small → 1536-element float array
     embed_small_dims=$(curl -s --max-time 15 \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d '{"model":"text-embedding-3-small","input":"smoke test embedding"}' \
         "${KONG}/v1/embeddings" 2>/dev/null \
@@ -341,7 +341,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # US3: token usage fields present and non-zero in every successful embedding response
     embed_tokens=$(curl -s --max-time 15 \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d '{"model":"text-embedding-3-small","input":"token usage verification"}' \
         "${KONG}/v1/embeddings" 2>/dev/null \
@@ -361,7 +361,7 @@ print('ok' if pt > 0 and tt > 0 else f'fail pt={pt} tt={tt}')
     # US1-b: text-embedding-3-large → 3072-element float array
     embed_large_dims=$(curl -s --max-time 15 \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d '{"model":"text-embedding-3-large","input":"smoke test embedding"}' \
         "${KONG}/v1/embeddings" 2>/dev/null \
@@ -375,7 +375,7 @@ print('ok' if pt > 0 and tt > 0 else f'fail pt={pt} tt={tt}')
     # US2-a: chat model on /v1/embeddings → HTTP 400 (model type rejection)
     embed_chat_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o","input":"reject me"}' \
         "${KONG}/v1/embeddings" 2>/dev/null)
@@ -388,7 +388,7 @@ print('ok' if pt > 0 and tt > 0 else f'fail pt={pt} tt={tt}')
     # US2-b: Anthropic chat model on /v1/embeddings → HTTP 400
     embed_anthropic_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d '{"model":"claude-sonnet","input":"reject me"}' \
         "${KONG}/v1/embeddings" 2>/dev/null)
@@ -403,7 +403,7 @@ print('ok' if pt > 0 and tt > 0 else f'fail pt={pt} tt={tt}')
     embed_cache_hit_1=$(curl -s --max-time 15 \
         -D - -o /dev/null \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d "$embed_cache_body" \
         "${KONG}/v1/embeddings" 2>/dev/null | tr -d '\r' \
@@ -411,7 +411,7 @@ print('ok' if pt > 0 and tt > 0 else f'fail pt={pt} tt={tt}')
     embed_cache_hit_2=$(curl -s --max-time 15 \
         -D - -o /dev/null \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d "$embed_cache_body" \
         "${KONG}/v1/embeddings" 2>/dev/null | tr -d '\r' \
@@ -425,7 +425,7 @@ print('ok' if pt > 0 and tt > 0 else f'fail pt={pt} tt={tt}')
     # US1-c: batch of 3 inputs → 3 objects, correct index ordering
     embed_batch=$(curl -s --max-time 15 \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d '{"model":"text-embedding-3-small","input":["first","second","third"]}' \
         "${KONG}/v1/embeddings" 2>/dev/null \
@@ -450,7 +450,7 @@ fi
 if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     langfuse_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: Bearer ${SMOKE_API_KEY}" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
         -H "Content-Type: application/json" \
         -d '{
           "model": "gpt-4o-mini",
@@ -468,6 +468,23 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     fi
 else
     printf '[SKIP]    Langfuse metadata probe (SMOKE_API_KEY not set)\n'
+fi
+
+# ── Auth rejection probes (US2: 401 on inference endpoints without key) ───────
+
+probe "GET /v1/models — unauthenticated (no key)"      "${KONG}/v1/models"     401
+probe "POST /v1/embeddings — unauthenticated (no key)" "${KONG}/v1/embeddings" 401 \
+    -X POST -H "Content-Type: application/json" -d '{}'
+
+# ── Internal port isolation (US4: LiteLLM :4000 must not be host-reachable) ──
+
+litellm_status=$(curl -s -o /dev/null -w '%{http_code}' \
+    --connect-timeout 2 --max-time 2 \
+    "http://localhost:4000/v1/models" 2>/dev/null || echo "000")
+if [[ "$litellm_status" == "000" ]]; then
+    ok "LiteLLM :4000 — not reachable from host (constitution §2.1)"
+else
+    fail "LiteLLM :4000 — externally reachable (HTTP ${litellm_status}) — constitution §2.1 violation"
 fi
 
 # ── Result ────────────────────────────────────────────────────────────────────
