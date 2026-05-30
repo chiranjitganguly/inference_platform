@@ -44,8 +44,26 @@ async def _stream_bytes(response: httpx.Response) -> AsyncIterator[bytes]:
     "/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
 )
+def _inject_no_log(body: bytes) -> bytes:
+    """Inject no_log=True so LiteLLM skips Phoenix/Langfuse callbacks for embeddings.
+
+    Safe to call when callbacks are disabled — the metadata field is ignored by LiteLLM
+    in that state, so this function is a no-op from LiteLLM's perspective.
+    """
+    try:
+        payload: dict = json.loads(body)
+    except Exception:
+        return body
+    payload.setdefault("metadata", {})["no_log"] = "True"
+    return json.dumps(payload).encode()
+
+
 async def proxy(request: Request, path: str) -> Response:
     body = await request.body()
+
+    if path == "v1/embeddings" and request.method == "POST":
+        body = _inject_no_log(body)
+
     headers = {
         k: v
         for k, v in request.headers.items()

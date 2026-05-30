@@ -69,6 +69,28 @@ services:
               key_in_header: true
               hide_credentials: true
 
+  # ── Embeddings — dedicated service entry for 120 s batch timeout (feature 011) ──
+  - name: litellm-embeddings
+    url: http://litellm:4000
+    connect_timeout: 10000
+    read_timeout:    120000
+    write_timeout:   120000
+
+    routes:
+      - name: litellm-embeddings-route
+        paths:
+          - /v1/embeddings
+        methods:
+          - POST
+        strip_path: false
+        plugins:
+          - name: key-auth
+            config:
+              key_names:
+                - Authorization
+              key_in_header: true
+              hide_credentials: true
+
   # ── portal-backend — spend report (master key validated via LiteLLM proxy) ──
   - name: portal-backend
     url: http://portal-backend:8092
