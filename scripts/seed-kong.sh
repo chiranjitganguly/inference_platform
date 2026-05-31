@@ -216,6 +216,89 @@ create_global_plugins() {
             >/dev/null
     fi
     ok "Global plugin: response-transformer (X-Platform, X-API-Version)"
+
+    # prometheus — expose per-consumer kong_http_requests_total metrics (FR-011)
+    if ! _plugin_exists_global prometheus; then
+        curl -sf -X POST "${KONG_ADMIN}/plugins" \
+            -d "name=prometheus" \
+            -d "config.per_consumer=true" \
+            >/dev/null
+    fi
+    ok "Global plugin: prometheus (per-consumer metrics)"
+}
+
+# ── Rate-limiting plugin (global, per-consumer, Redis-backed) ─────────────────
+
+create_rate_limiting_plugin() {
+    info "Installing global rate-limiting plugin..."
+    if ! _plugin_exists_global rate-limiting; then
+        curl -sf -X POST "${KONG_ADMIN}/plugins" \
+            -d "name=rate-limiting" \
+            -d "config.second=10" \
+            -d "config.minute=300" \
+            -d "config.hour=10000" \
+            -d "config.policy=redis" \
+            -d "config.redis_host=redis-cache" \
+            -d "config.redis_port=6379" \
+            -d "config.limit_by=consumer" \
+            -d "config.fault_tolerant=true" \
+            -d "config.hide_client_headers=false" \
+            >/dev/null
+    fi
+    ok "Global plugin: rate-limiting (10/s, 300/min, 10000/hr — Redis, by consumer)"
+}
+
+# ── Consumer B (for isolation smoke tests) ───────────────────────────────────
+
+create_consumer_b() {
+    info "Creating consumer-b (isolation test identity)..."
+
+    curl -sf -X PUT "${KONG_ADMIN}/consumers/consumer-b" \
+        -d "username=consumer-b" \
+        -d "tags[]=smoke-test" \
+        >/dev/null
+    ok "Consumer: consumer-b"
+
+    curl -sf -X POST "${KONG_ADMIN}/consumers/consumer-b/key-auth" \
+        -d "key=${CONSUMER_B_API_KEY:-consumer-b-test-key}" \
+        >/dev/null 2>&1 || true
+    ok "Key credential provisioned for consumer-b."
+}
+
+# ── Operator helper: assign a per-consumer rate-limit tier ───────────────────
+# Usage: _set_consumer_rate_limit <username> <second> <minute> <hour>
+# Example: _set_consumer_rate_limit enterprise-user 50 1500 50000
+_set_consumer_rate_limit() {
+    local username="$1"
+    local second="$2"
+    local minute="$3"
+    local hour="$4"
+
+    local plugin_id
+    plugin_id=$(curl -sf "${KONG_ADMIN}/consumers/${username}/plugins?name=rate-limiting" 2>/dev/null \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d['data'] else '')" 2>/dev/null || echo "")
+
+    if [[ -n "$plugin_id" ]]; then
+        curl -sf -X PATCH "${KONG_ADMIN}/plugins/${plugin_id}" \
+            -d "config.second=${second}" \
+            -d "config.minute=${minute}" \
+            -d "config.hour=${hour}" \
+            >/dev/null
+    else
+        curl -sf -X POST "${KONG_ADMIN}/consumers/${username}/plugins" \
+            -d "name=rate-limiting" \
+            -d "config.second=${second}" \
+            -d "config.minute=${minute}" \
+            -d "config.hour=${hour}" \
+            -d "config.policy=redis" \
+            -d "config.redis_host=redis-cache" \
+            -d "config.redis_port=6379" \
+            -d "config.limit_by=consumer" \
+            -d "config.fault_tolerant=true" \
+            -d "config.hide_client_headers=false" \
+            >/dev/null
+    fi
+    ok "Consumer rate-limit override: ${username} → ${second}/s, ${minute}/min, ${hour}/hr"
 }
 
 # ── Verify and print ──────────────────────────────────────────────────────────
@@ -288,11 +371,13 @@ main() {
     printf '\nSeeding Kong at %s\n\n' "$KONG_ADMIN"
     wait_for_kong
     create_consumers
+    create_consumer_b
     create_inference_service
     create_embeddings_service
     create_admin_services
     create_health_service
     create_global_plugins
+    create_rate_limiting_plugin
     verify_setup
     print_key
     printf 'Kong seeding complete.\n'

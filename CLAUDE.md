@@ -18,7 +18,7 @@ decision. The invariants there are non-negotiable.
 Current phase and active feature are tracked in `docs/progress.md`.
 
 <!-- SPECKIT START -->
-**Active feature plan:** `specs/012-kong-api-gateway-auth/plan.md`
+**Active feature plan:** `specs/013-consumer-rate-limiting/plan.md`
 <!-- SPECKIT END -->
 
 ---

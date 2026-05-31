@@ -1,0 +1,16 @@
+groups:
+  - name: rate_limiting
+    rules:
+      - alert: RateLimitStoreDown
+        # fallback: use increase(kong_counter_total{name="redis_errors"}[1m]) > 0
+        # if up{job="redis-cache"} is not available in this Kong/Prometheus version
+        expr: up{job="redis-cache"} == 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rate-limit counter store (Redis) unreachable — fail-open mode active"
+          description: >
+            Kong cannot reach Redis for rate-limit counter reads.
+            All requests are passing through without rate-limit enforcement
+            (fault_tolerant=true). Operator action required.
