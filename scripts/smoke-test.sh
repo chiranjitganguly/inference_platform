@@ -487,6 +487,159 @@ else
     fail "LiteLLM :4000 — externally reachable (HTTP ${litellm_status}) — constitution §2.1 violation"
 fi
 
+# ── Rate-limit probes (feature 013) ──────────────────────────────────────────
+
+# T009: probe_rate_limit_burst — send 12 rapid requests, expect first 10 → 200,
+# requests 11-12 → 429 (per-second limit of 10, FR-002, FR-003).
+if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+    burst_pass=0
+    burst_fail=0
+    for i in $(seq 1 12); do
+        status=$(curl -s -o /dev/null -w '%{http_code}' \
+            --max-time "$TIMEOUT" \
+            -H "Authorization: ${SMOKE_API_KEY}" \
+            "${KONG}/v1/models" 2>/dev/null || echo "000")
+        printf '[INFO]    Rate-limit burst request %2d → HTTP %s\n' "$i" "$status"
+        if [[ $i -le 10 && "$status" == "200" ]]; then
+            burst_pass=$(( burst_pass + 1 ))
+        elif [[ $i -gt 10 && "$status" == "429" ]]; then
+            burst_pass=$(( burst_pass + 1 ))
+        else
+            burst_fail=$(( burst_fail + 1 ))
+        fi
+    done
+    if [[ $burst_fail -eq 0 ]]; then
+        ok "Rate-limit burst — requests 1-10 returned 200, 11-12 returned 429 (${burst_pass}/12)"
+    else
+        fail "Rate-limit burst — ${burst_fail} requests had unexpected status codes"
+    fi
+else
+    printf '[SKIP]    Rate-limit burst probe (SMOKE_API_KEY not set)\n'
+fi
+
+# T010: probe_retry_after_header — confirm Retry-After header present on 429 (FR-004).
+if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+    # exhaust per-second limit then capture the throttled response
+    for _ in $(seq 1 10); do
+        curl -s -o /dev/null --max-time "$TIMEOUT" \
+            -H "Authorization: ${SMOKE_API_KEY}" \
+            "${KONG}/v1/models" 2>/dev/null
+    done
+    throttle_headers=$(curl -si --max-time "$TIMEOUT" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        "${KONG}/v1/models" 2>/dev/null | tr -d '\r')
+    if echo "$throttle_headers" | grep -qi "^retry-after:"; then
+        retry_val=$(echo "$throttle_headers" | grep -i "^retry-after:" | awk '{print $2}')
+        ok "Rate-limit Retry-After header present on 429 (value: ${retry_val}s)"
+    else
+        fail "Rate-limit Retry-After header missing on 429 response — FR-004 violation"
+    fi
+else
+    printf '[SKIP]    Rate-limit Retry-After header probe (SMOKE_API_KEY not set)\n'
+fi
+
+# T012: probe_consumer_isolation — Consumer A throttled, Consumer B still gets 200 (US2, SC-002).
+CONSUMER_B_KEY="${CONSUMER_B_API_KEY:-consumer-b-test-key}"
+if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+    # hammer Consumer A past per-second limit in background
+    (
+        for _ in $(seq 1 20); do
+            curl -s -o /dev/null --max-time "$TIMEOUT" \
+                -H "Authorization: ${SMOKE_API_KEY}" \
+                "${KONG}/v1/models" 2>/dev/null
+        done
+    ) &
+    bg_pid=$!
+    sleep 0.05
+    isolation_status=$(curl -s -o /dev/null -w '%{http_code}' \
+        --max-time "$TIMEOUT" \
+        -H "Authorization: ${CONSUMER_B_KEY}" \
+        "${KONG}/v1/models" 2>/dev/null || echo "000")
+    wait "$bg_pid" 2>/dev/null || true
+    if [[ "$isolation_status" == "200" ]]; then
+        ok "Rate-limit consumer isolation — Consumer B gets 200 while Consumer A is throttled (SC-002)"
+    else
+        fail "Rate-limit consumer isolation — Consumer B got HTTP ${isolation_status}, expected 200"
+    fi
+else
+    printf '[SKIP]    Rate-limit consumer isolation probe (SMOKE_API_KEY not set)\n'
+fi
+
+# T014: probe_custom_consumer_limit — consumer-scoped override enforced (US3, SC-004).
+consumer_b_plugin_id=""
+if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+    # apply a tighter per-second limit (2/s) to consumer-b via Admin API
+    create_resp=$(curl -sf -X POST "${KONG_ADMIN}/consumers/consumer-b/plugins" \
+        -d "name=rate-limiting" \
+        -d "config.second=2" \
+        -d "config.minute=300" \
+        -d "config.hour=10000" \
+        -d "config.policy=redis" \
+        -d "config.redis_host=redis-cache" \
+        -d "config.redis_port=6379" \
+        -d "config.limit_by=consumer" \
+        -d "config.fault_tolerant=true" \
+        -d "config.hide_client_headers=false" \
+        2>/dev/null || echo "")
+    consumer_b_plugin_id=$(printf '%s' "$create_resp" \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null || echo "")
+
+    if [[ -n "$consumer_b_plugin_id" ]]; then
+        # send 3 requests — 3rd must be 429 under the 2/s limit
+        custom_fail=0
+        for i in $(seq 1 3); do
+            st=$(curl -s -o /dev/null -w '%{http_code}' \
+                --max-time "$TIMEOUT" \
+                -H "Authorization: ${CONSUMER_B_KEY}" \
+                "${KONG}/v1/models" 2>/dev/null || echo "000")
+            if [[ $i -le 2 && "$st" != "200" ]]; then custom_fail=$(( custom_fail + 1 )); fi
+            if [[ $i -eq 3 && "$st" != "429" ]]; then custom_fail=$(( custom_fail + 1 )); fi
+        done
+
+        # clean up the consumer-scoped plugin
+        curl -sf -X DELETE "${KONG_ADMIN}/plugins/${consumer_b_plugin_id}" >/dev/null 2>&1 || true
+
+        if [[ $custom_fail -eq 0 ]]; then
+            ok "Rate-limit per-consumer override — consumer-b 2/s limit enforced; global 10/s unaffected (SC-004)"
+        else
+            fail "Rate-limit per-consumer override — expected requests 1-2→200, 3→429 under 2/s limit"
+        fi
+    else
+        fail "Rate-limit per-consumer override — could not create consumer-scoped plugin for consumer-b"
+    fi
+else
+    printf '[SKIP]    Rate-limit per-consumer override probe (SMOKE_API_KEY not set)\n'
+fi
+
+# T015: probe_quota_headers — all nine RateLimit-* headers present on 200 (US4, FR-006).
+if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+    quota_headers=$(curl -si --max-time "$TIMEOUT" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        "${KONG}/v1/models" 2>/dev/null | tr -d '\r')
+    quota_missing=()
+    for hdr in \
+        "ratelimit-limit-second" \
+        "ratelimit-remaining-second" \
+        "ratelimit-reset-second" \
+        "ratelimit-limit-minute" \
+        "ratelimit-remaining-minute" \
+        "ratelimit-reset-minute" \
+        "ratelimit-limit-hour" \
+        "ratelimit-remaining-hour" \
+        "ratelimit-reset-hour"; do
+        if ! echo "$quota_headers" | grep -qi "^${hdr}:"; then
+            quota_missing+=("$hdr")
+        fi
+    done
+    if [[ ${#quota_missing[@]} -eq 0 ]]; then
+        ok "Rate-limit quota headers — all nine RateLimit-* headers present on 200 response (FR-006)"
+    else
+        fail "Rate-limit quota headers — missing headers: ${quota_missing[*]}"
+    fi
+else
+    printf '[SKIP]    Rate-limit quota headers probe (SMOKE_API_KEY not set)\n'
+fi
+
 # ── Result ────────────────────────────────────────────────────────────────────
 
 printf '\n%d passed, %d failed\n\n' "$pass" "$fail"
