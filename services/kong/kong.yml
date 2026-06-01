@@ -126,11 +126,32 @@ services:
 # ── Global Plugins ────────────────────────────────────────────────────────────
 
 plugins:
+  # pre-function: strip any client-supplied correlation/trace headers so the
+  # gateway always issues its own authoritative identifiers (FR-002).
+  # Priority 1,000,000 — runs before correlation-id (100,001) and opentelemetry (100,000).
+  - name: pre-function
+    config:
+      access:
+        - |
+          kong.request.clear_header("X-Request-ID")
+          kong.request.clear_header("traceparent")
+          kong.request.clear_header("tracestate")
+
   - name: correlation-id
     config:
       header_name:      X-Request-ID
       generator:        uuid
       echo_downstream:  true
+
+  # opentelemetry: generate W3C traceparent/tracestate for upstream propagation
+  # and emit spans to the OTel Collector for gateway.request_id enrichment (FR-005, FR-010).
+  - name: opentelemetry
+    config:
+      endpoint: http://otel-collector:4318/v1/traces
+      resource_attributes:
+        service.name: kong-gateway
+      batch_span_count: 200
+      batch_flush_delay: 3
 
   - name: response-transformer
     config:
