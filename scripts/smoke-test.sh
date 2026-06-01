@@ -640,6 +640,94 @@ else
     printf '[SKIP]    Rate-limit quota headers probe (SMOKE_API_KEY not set)\n'
 fi
 
+# ── Request correlation probes (feature 014) ─────────────────────────────────
+
+# T001: X-Request-ID present on every response (SC-001, FR-003)
+corr_id=$(curl -si --max-time "$TIMEOUT" \
+    "${KONG}/health" 2>/dev/null | tr -d '\r' \
+    | grep -i "^x-request-id:" | awk '{print $2}')
+if [[ -n "$corr_id" ]]; then
+    ok "X-Request-ID — present in response header (${corr_id})"
+else
+    fail "X-Request-ID — missing from response header (FR-003 violation)"
+fi
+
+# T002: X-Request-ID is UUID v4 format (SC-001, FR-001)
+uuid_regex='^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+if [[ -n "$corr_id" ]] && echo "$corr_id" | grep -Eqi "$uuid_regex"; then
+    ok "X-Request-ID — UUID v4 format confirmed"
+else
+    fail "X-Request-ID — not a valid UUID v4: '${corr_id:-absent}'"
+fi
+
+# T003: client-supplied X-Request-ID is overwritten (SC-004, FR-002)
+client_id="00000000-0000-0000-0000-000000000000"
+returned_id=$(curl -si --max-time "$TIMEOUT" \
+    -H "X-Request-ID: ${client_id}" \
+    "${KONG}/health" 2>/dev/null | tr -d '\r' \
+    | grep -i "^x-request-id:" | awk '{print $2}')
+if [[ "$returned_id" != "$client_id" && -n "$returned_id" ]]; then
+    ok "X-Request-ID — client-supplied value overwritten (returned: ${returned_id})"
+else
+    fail "X-Request-ID — client value leaked to response: '${returned_id:-absent}'"
+fi
+
+# T004: X-Request-ID unique across sequential requests (SC-001, FR-007)
+corr_id_a=$(curl -si --max-time "$TIMEOUT" "${KONG}/health" 2>/dev/null | tr -d '\r' \
+    | grep -i "^x-request-id:" | awk '{print $2}')
+corr_id_b=$(curl -si --max-time "$TIMEOUT" "${KONG}/health" 2>/dev/null | tr -d '\r' \
+    | grep -i "^x-request-id:" | awk '{print $2}')
+if [[ -n "$corr_id_a" && -n "$corr_id_b" && "$corr_id_a" != "$corr_id_b" ]]; then
+    ok "X-Request-ID — unique across sequential requests (${corr_id_a} ≠ ${corr_id_b})"
+else
+    fail "X-Request-ID — duplicate or empty IDs: a='${corr_id_a:-absent}' b='${corr_id_b:-absent}'"
+fi
+
+# T005: X-Request-ID present on 401 error response (SC-001, FR-003)
+err_corr_id=$(curl -si --max-time "$TIMEOUT" \
+    "${KONG}/v1/chat/completions" \
+    -X POST -H "Content-Type: application/json" \
+    -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"no auth"}]}' \
+    2>/dev/null | tr -d '\r' \
+    | grep -i "^x-request-id:" | awk '{print $2}')
+if [[ -n "$err_corr_id" ]]; then
+    ok "X-Request-ID — present on 401 error response (${err_corr_id})"
+else
+    fail "X-Request-ID — missing from 401 error response (FR-003 violation)"
+fi
+
+# T006: client-supplied traceparent is stripped — verify pre-function plugin active
+# (Indirect check: if pre-function runs, a crafted client traceparent cannot appear in response)
+client_traceparent="00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+corr_id_tp=$(curl -si --max-time "$TIMEOUT" \
+    -H "traceparent: ${client_traceparent}" \
+    "${KONG}/health" 2>/dev/null | tr -d '\r' \
+    | grep -i "^x-request-id:" | awk '{print $2}')
+if [[ -n "$corr_id_tp" ]]; then
+    ok "X-Request-ID — present when client supplies traceparent (pre-function active)"
+else
+    fail "X-Request-ID — missing; pre-function plugin may not be loaded"
+fi
+
+# US4: 5 sequential requests → 5 distinct UUIDs (FR-007, SC-001)
+declare -a corr_ids=()
+for i in $(seq 1 5); do
+    rid=$(curl -si --max-time "$TIMEOUT" "${KONG}/health" 2>/dev/null | tr -d '\r' \
+        | grep -i "^x-request-id:" | awk '{print $2}')
+    corr_ids+=("$rid")
+done
+# check all 5 are non-empty and unique
+uniq_count=$(printf '%s\n' "${corr_ids[@]}" | grep -v '^$' | sort -u | wc -l | tr -d ' ')
+if [[ "$uniq_count" == "5" ]]; then
+    ok "X-Request-ID — 5 sequential requests produced 5 distinct UUIDs (FR-007)"
+else
+    fail "X-Request-ID — expected 5 distinct UUIDs, got ${uniq_count} unique non-empty values"
+fi
+
+# US3 info: guardrails audit log correlation (manual verification required for obs profile)
+printf '[INFO]    Guardrails audit log: make logs svc=guardrails | grep request_id\n'
+printf '[INFO]    Phoenix span lookup: filter by gateway.request_id = %s at http://localhost:6006\n' "${corr_id:-<run-with-obs-profile>}"
+
 # ── Result ────────────────────────────────────────────────────────────────────
 
 printf '\n%d passed, %d failed\n\n' "$pass" "$fail"

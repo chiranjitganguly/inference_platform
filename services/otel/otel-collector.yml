@@ -1,0 +1,39 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Promote the X-Request-ID header value (captured by Kong's OTel plugin as
+  # http.request.header.x_request_id) to a canonical gateway.request_id span
+  # attribute so operators can look up any span by the UUID returned to callers.
+  attributes:
+    actions:
+      - key: gateway.request_id
+        from_attribute: http.request.header.x_request_id
+        action: upsert
+
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+
+exporters:
+  otlp/phoenix:
+    endpoint: http://arize-phoenix:6006
+    tls:
+      insecure: true
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers:  [otlp]
+      processors: [attributes, batch]
+      exporters:  [otlp/phoenix]

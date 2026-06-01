@@ -19,9 +19,11 @@ To activate: add to docker-compose.yml (safety profile) and update Kong upstream
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
+from datetime import datetime, timezone
 from typing import AsyncIterator
 
 import httpx
@@ -29,6 +31,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import StreamingResponse
 
 logger = logging.getLogger("guardrails")
+audit = logging.getLogger("guardrails.audit")
 
 LITELLM_BASE_URL = os.environ.get("LITELLM_BASE_URL", "http://litellm:4000")
 
@@ -79,6 +82,8 @@ async def proxy(request: Request, path: str) -> Response:
             params=dict(request.query_params),
         )
 
+    _write_audit(request, body, upstream.status_code)
+
     if upstream.status_code == 503:
         return _normalise_503(upstream, body)
 
@@ -96,6 +101,28 @@ async def proxy(request: Request, path: str) -> Response:
         status_code=upstream.status_code,
         headers=dict(upstream.headers),
     )
+
+
+def _write_audit(request: Request, body: bytes, status_code: int) -> None:
+    """Write a metadata-only audit entry — no prompt content (constitution §II)."""
+    api_key: str = request.headers.get("authorization", "")
+    key_hash = hashlib.sha256(api_key.encode()).hexdigest() if api_key else ""
+    model_name = ""
+    try:
+        payload: dict = json.loads(body or b"{}")
+        model_name = payload.get("model", "")
+    except Exception:
+        pass
+    entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "event_type": "inference_request",
+        "request_id": request.headers.get("x-request-id", ""),
+        "key_hash": key_hash,
+        "model_name": model_name,
+        "pii_entity_count": 0,
+        "scanner_blocked": False,
+    }
+    audit.info(json.dumps(entry))
 
 
 def _normalise_503(upstream: httpx.Response, request_body: bytes) -> Response:

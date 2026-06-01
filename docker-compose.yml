@@ -161,6 +161,26 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.97.0
+    profiles: [obs]
+    command: ["--config=/etc/otelcol/otel-collector.yml"]
+    volumes:
+      - ./services/otel/otel-collector.yml:/etc/otelcol/otel-collector.yml:ro
+    expose:
+      - "4317"
+      - "4318"
+    depends_on:
+      arize-phoenix:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
   arize-phoenix:
     image: arizephoenix/phoenix:latest
     profiles: [obs]
