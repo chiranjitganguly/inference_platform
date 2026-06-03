@@ -14,6 +14,7 @@
 set -euo pipefail
 
 KONG_ADMIN="${KONG_ADMIN_URL:-http://localhost:8001}"
+REQUEST_SIZE_LIMIT_MB="${REQUEST_SIZE_LIMIT_MB:-10}"
 
 ok()   { printf '[OK]      %s\n' "$*"; }
 info() { printf '[INFO]    %s\n' "$*"; }
@@ -227,6 +228,19 @@ create_global_plugins() {
     ok "Global plugin: prometheus (per-consumer metrics)"
 }
 
+# ── Request size limiting plugin (global, all routes) ────────────────────────
+
+create_request_size_plugin() {
+    info "Installing global request-size-limiting plugin (limit: ${REQUEST_SIZE_LIMIT_MB} MB)..."
+    if ! _plugin_exists_global request-size-limiting; then
+        curl -sf -X POST "${KONG_ADMIN}/plugins" \
+            -d "name=request-size-limiting" \
+            -d "config.allowed_payload_size=${REQUEST_SIZE_LIMIT_MB}" \
+            >/dev/null
+    fi
+    ok "Global plugin: request-size-limiting (${REQUEST_SIZE_LIMIT_MB} MB — rejects with 413)"
+}
+
 # ── Rate-limiting plugin (global, per-consumer, Redis-backed) ─────────────────
 
 create_rate_limiting_plugin() {
@@ -378,6 +392,7 @@ main() {
     create_health_service
     create_global_plugins
     create_rate_limiting_plugin
+    create_request_size_plugin
     verify_setup
     print_key
     printf 'Kong seeding complete.\n'

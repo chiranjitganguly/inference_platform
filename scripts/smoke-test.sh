@@ -728,6 +728,129 @@ fi
 printf '[INFO]    Guardrails audit log: make logs svc=guardrails | grep request_id\n'
 printf '[INFO]    Phoenix span lookup: filter by gateway.request_id = %s at http://localhost:6006\n' "${corr_id:-<run-with-obs-profile>}"
 
+# ── [015] Request body size limit ────────────────────────────────────────────
+
+REQUEST_SIZE_LIMIT_MB="${REQUEST_SIZE_LIMIT_MB:-10}"
+
+if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+
+    # [015] US1 — oversized payload returns 413 (SC-001)
+    # Generate an 11 MB body inline; Kong must reject before forwarding to LiteLLM.
+    oversize_status=$(python3 -c "
+import urllib.request, json, sys
+body = json.dumps({'model':'gpt-4o','messages':[{'role':'user','content':'x'*11534336}]}).encode()
+req = urllib.request.Request(
+    '${KONG}/v1/chat/completions',
+    data=body,
+    headers={'Authorization':'${SMOKE_API_KEY}','Content-Type':'application/json'},
+    method='POST'
+)
+try:
+    urllib.request.urlopen(req, timeout=10)
+    print('200')
+except urllib.error.HTTPError as e:
+    print(e.code)
+except Exception:
+    print('000')
+" 2>/dev/null || echo "000")
+    if [[ "$oversize_status" == "413" ]]; then
+        ok "[015] POST /v1/chat/completions — oversized payload (11 MB) rejected with HTTP 413 (SC-001)"
+    else
+        fail "[015] POST /v1/chat/completions — expected HTTP 413 for oversized payload, got ${oversize_status}"
+    fi
+
+    # [015] US1 — boundary: exactly REQUEST_SIZE_LIMIT_MB content passes through (SC-002)
+    # A 10 MB payload should not be rejected (200, 400, or 422 all indicate pass-through).
+    boundary_status=$(python3 -c "
+import urllib.request, json, sys
+body = json.dumps({'model':'gpt-4o','messages':[{'role':'user','content':'x'*10485760}]}).encode()
+req = urllib.request.Request(
+    '${KONG}/v1/chat/completions',
+    data=body,
+    headers={'Authorization':'${SMOKE_API_KEY}','Content-Type':'application/json'},
+    method='POST'
+)
+try:
+    urllib.request.urlopen(req, timeout=15)
+    print('200')
+except urllib.error.HTTPError as e:
+    print(e.code)
+except Exception:
+    print('000')
+" 2>/dev/null || echo "000")
+    if [[ "$boundary_status" != "413" && "$boundary_status" != "000" ]]; then
+        ok "[015] POST /v1/chat/completions — boundary payload (10 MB) passed through Kong (HTTP ${boundary_status}) (SC-002)"
+    else
+        fail "[015] POST /v1/chat/completions — boundary payload (10 MB) was incorrectly rejected with HTTP ${boundary_status} (SC-002)"
+    fi
+
+    # [015] US2 — normal request unaffected by size limit (SC-002)
+    # Unaffected by [015] size limit — standard small request must still succeed.
+    probe "[015] POST /v1/chat/completions — normal request unaffected by size limit" \
+        "${KONG}/v1/chat/completions" "200" \
+        -X POST \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"gpt-4o","messages":[{"role":"user","content":"smoke probe — size limit regression check"}]}'
+
+    # [015] US3 — embeddings route also enforces size limit (SC-004)
+    embed_oversize_status=$(python3 -c "
+import urllib.request, json, sys
+body = json.dumps({'model':'text-embedding-3-small','input':'x'*11534336}).encode()
+req = urllib.request.Request(
+    '${KONG}/v1/embeddings',
+    data=body,
+    headers={'Authorization':'${SMOKE_API_KEY}','Content-Type':'application/json'},
+    method='POST'
+)
+try:
+    urllib.request.urlopen(req, timeout=10)
+    print('200')
+except urllib.error.HTTPError as e:
+    print(e.code)
+except Exception:
+    print('000')
+" 2>/dev/null || echo "000")
+    if [[ "$embed_oversize_status" == "413" ]]; then
+        ok "[015] POST /v1/embeddings — oversized payload (11 MB) rejected with HTTP 413 (SC-004)"
+    else
+        fail "[015] POST /v1/embeddings — expected HTTP 413 for oversized payload, got ${embed_oversize_status}"
+    fi
+
+    # [015] US3 — 413 response carries X-Request-ID and X-Platform headers (SC-005 observability)
+    size_headers=$(python3 -c "
+import urllib.request, json, sys
+body = json.dumps({'model':'gpt-4o','messages':[{'role':'user','content':'x'*11534336}]}).encode()
+req = urllib.request.Request(
+    '${KONG}/v1/chat/completions',
+    data=body,
+    headers={'Authorization':'${SMOKE_API_KEY}','Content-Type':'application/json'},
+    method='POST'
+)
+try:
+    urllib.request.urlopen(req, timeout=10)
+    print('no-error')
+except urllib.error.HTTPError as e:
+    xrid = e.headers.get('X-Request-ID','')
+    xplat = e.headers.get('X-Platform','')
+    print(f'{xrid}|{xplat}')
+except Exception:
+    print('|')
+" 2>/dev/null || echo "|")
+    size_xrid="${size_headers%%|*}"
+    size_xplat="${size_headers##*|}"
+    if [[ -n "$size_xrid" && "$size_xplat" == "inference-platform" ]]; then
+        ok "[015] POST /v1/chat/completions — 413 response carries X-Request-ID and X-Platform headers (SC-005)"
+    else
+        fail "[015] POST /v1/chat/completions — 413 missing correlation headers: X-Request-ID='${size_xrid}' X-Platform='${size_xplat}'"
+    fi
+
+else
+    printf '[INFO]    [015] Skipping request-size-limit probes — SMOKE_API_KEY not set\n'
+fi
+
+printf '[INFO]    [015] Loki audit query: {service="kong"} | json | status="413"\n'
+
 # ── Result ────────────────────────────────────────────────────────────────────
 
 printf '\n%d passed, %d failed\n\n' "$pass" "$fail"
