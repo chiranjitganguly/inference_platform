@@ -159,3 +159,9 @@ plugins:
         headers:
           - "X-Platform: inference-platform"
           - "X-API-Version: 1"
+
+  # request-size-limiting: reject payloads > 10 MB before forwarding to any upstream.
+  # Protects against context-stuffing attacks (feature 015).
+  - name: request-size-limiting
+    config:
+      allowed_payload_size: 10

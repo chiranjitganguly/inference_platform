@@ -17,13 +17,14 @@
 | 011 | Embeddings endpoint | 011-embeddings-endpoint | ✓ Done |
 | 012 | Kong API gateway auth | 012-kong-api-gateway-auth | ✓ Done |
 | 013 | Consumer rate limiting | 013-consumer-rate-limiting | ✓ Done |
-| **014** | **Request correlation** | **014-request-correlation** | **⚡ Active** |
+| 014 | Request correlation | 014-request-correlation | ✓ Done |
+| **015** | **Gateway body size limit** | **015-gateway-body-size-limit** | **⚡ Active** |
 
-## Active feature: 014 — Request Correlation
+## Active feature: 015 — Gateway Body Size Limit
 
-**Spec**: `specs/014-request-correlation/spec.md`
-**Plan**: `specs/014-request-correlation/plan.md`
-**Tasks**: `specs/014-request-correlation/tasks.md`
+**Spec**: `specs/015-gateway-body-size-limit/spec.md`
+**Plan**: `specs/015-gateway-body-size-limit/plan.md`
+**Tasks**: `specs/015-gateway-body-size-limit/tasks.md`
 
 ### What ships in this feature
 
@@ -46,3 +47,26 @@
 | `services/guardrails/main.py` | Added `_write_audit` structured log function |
 | `scripts/smoke-test.sh` | Added 7 request correlation probes |
 | `docs/progress.md` | This file — created |
+
+## Feature 015 — Gateway Body Size Limit
+
+**Spec**: `specs/015-gateway-body-size-limit/spec.md`
+**Plan**: `specs/015-gateway-body-size-limit/plan.md`
+**Tasks**: `specs/015-gateway-body-size-limit/tasks.md`
+
+### What ships in this feature
+
+- Kong `request-size-limiting` global plugin — rejects payloads > `REQUEST_SIZE_LIMIT_MB` MB (default 10) with HTTP 413
+- Applied to all routes (global scope) — no per-route configuration required
+- Rejection occurs at Kong edge before any upstream is contacted (Guardrails, LiteLLM)
+- 5 new smoke probes: oversized rejection (chat + embeddings), boundary pass-through, regression check, header assertion
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `scripts/seed-kong.sh` | Added `create_request_size_plugin()` function + `REQUEST_SIZE_LIMIT_MB` env var |
+| `services/kong/kong.yml` | Added `request-size-limiting` global plugin with `allowed_payload_size: 10` |
+| `.env.example` | Added `REQUEST_SIZE_LIMIT_MB=` variable |
+| `scripts/smoke-test.sh` | Added 5 request-size-limit probes (US1, US2, US3) |
+| `docs/progress.md` | Updated active feature tracker |

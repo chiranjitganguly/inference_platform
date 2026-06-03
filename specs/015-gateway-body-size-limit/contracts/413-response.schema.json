@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Kong 413 Request Entity Too Large Response",
+  "description": "Response body returned by Kong's request-size-limiting plugin when the incoming request body exceeds allowed_payload_size.",
+  "type": "object",
+  "required": ["message"],
+  "properties": {
+    "message": {
+      "type": "string",
+      "description": "Human-readable rejection reason.",
+      "example": "Request size limit exceeded"
+    }
+  },
+  "additionalProperties": false,
+  "x-http-status": 413,
+  "x-content-type": "application/json",
+  "x-source": "Kong built-in request-size-limiting plugin (Kong 3.6)",
+  "x-notes": [
+    "This response is emitted by Kong before any upstream service is contacted.",
+    "The X-Request-ID response header is present (set by the correlation-id global plugin).",
+    "The X-Platform and X-API-Version response headers are present (set by response-transformer global plugin).",
+    "No prompt content is present in this response."
+  ],
+  "x-example-response": {
+    "status": 413,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "X-Request-ID": "a3f7c291-1234-5678-abcd-ef0123456789",
+      "X-Platform": "inference-platform",
+      "X-API-Version": "1"
+    },
+    "body": {
+      "message": "Request size limit exceeded"
+    }
+  }
+}
