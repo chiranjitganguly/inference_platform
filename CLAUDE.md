@@ -18,7 +18,7 @@ decision. The invariants there are non-negotiable.
 Current phase and active feature are tracked in `docs/progress.md`.
 
 <!-- SPECKIT START -->
-**Active feature plan:** `specs/015-gateway-body-size-limit/plan.md`
+**Active feature plan:** `specs/016-gateway-api-versioning/plan.md`
 <!-- SPECKIT END -->
 
 ---
