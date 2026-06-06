@@ -18,9 +18,50 @@
 | 012 | Kong API gateway auth | 012-kong-api-gateway-auth | ✓ Done |
 | 013 | Consumer rate limiting | 013-consumer-rate-limiting | ✓ Done |
 | 014 | Request correlation | 014-request-correlation | ✓ Done |
-| **015** | **Gateway body size limit** | **015-gateway-body-size-limit** | **⚡ Active** |
+| 015 | Gateway body size limit | 015-gateway-body-size-limit | ✓ Done |
+| 016 | Gateway API versioning | 016-gateway-api-versioning | ✓ Done |
+| **017** | **Async batch inference** | **017-async-batch-inference** | **✅ Complete** |
 
-## Active feature: 015 — Gateway Body Size Limit
+## Active feature: 017 — Async Batch Inference
+
+**Spec**: `specs/017-async-batch-inference/spec.md`
+**Plan**: `specs/017-async-batch-inference/plan.md`
+**Tasks**: `specs/017-async-batch-inference/tasks.md`
+
+### What ships in this feature
+
+- FastAPI `batch-api` service on port 8091 (internal, behind Kong :8080)
+- RQ `batch-worker` processes jobs from redis-queue (port 6380, noeviction)
+- `POST /v1/batch/jobs` → 202 with `job_id` within 1 second (up to 10,000 items per batch)
+- `GET /v1/batch/jobs/{id}` → status polling (`queued` → `running` → `completed`)
+- `GET /v1/batch/jobs/{id}/results` → JSONL streaming response sorted by item index
+- Per-item retry: up to 3 attempts with exponential backoff (1 s, 2 s) on 5xx/network errors
+- `MAX_CONCURRENT` asyncio semaphore caps parallel LiteLLM calls (default 4, env var)
+- OTel parent span per job + child span per item exported to OTel Collector :4318
+- 24-hour result retention with APScheduler auto-deletion (every 5 min)
+- New 7th PostgreSQL database: `batch` (schema-isolated from litellm)
+- Constitution §2.4 justified exception: `input_payload` NULLed immediately after each item processes
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `services/batch-worker/Dockerfile` | New — multi-stage, non-root, linux/amd64+arm64 |
+| `services/batch-worker/requirements.txt` | New — pinned deps: fastapi, rq, asyncpg, httpx, opentelemetry-sdk, apscheduler |
+| `services/batch-worker/main.py` | New — FastAPI app with all 3 endpoints + lifespan |
+| `services/batch-worker/worker.py` | New — RQ job + async item processor + retry + semaphore + OTel |
+| `services/batch-worker/db.py` | New — asyncpg pool + DDL + CRUD helpers |
+| `services/batch-worker/otel.py` | New — TracerProvider, OTLP exporter, context inject/extract |
+| `services/batch-worker/cleanup.py` | New — APScheduler jobs for result expiry + payload nulling |
+| `scripts/init-db.sql` | Added 7th database: `batch` |
+| `scripts/seed-kong.sh` | Added `create_batch_service()` + 3 Kong routes |
+| `services/kong/kong.yml` | Added batch-api service + 3 routes (reference doc) |
+| `docker-compose.yml` | Added `batch-api` + `batch-worker` services + `batch_results` volume |
+| `.env.example` | Added 5 batch env vars |
+| `scripts/smoke-test.sh` | Added 6 batch API probes |
+| `docs/progress.md` | This file — updated |
+
+## Feature 015 — Gateway Body Size Limit
 
 **Spec**: `specs/015-gateway-body-size-limit/spec.md`
 **Plan**: `specs/015-gateway-body-size-limit/plan.md`

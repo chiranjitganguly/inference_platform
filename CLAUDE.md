@@ -18,7 +18,7 @@ decision. The invariants there are non-negotiable.
 Current phase and active feature are tracked in `docs/progress.md`.
 
 <!-- SPECKIT START -->
-**Active feature plan:** `specs/016-gateway-api-versioning/plan.md`
+**Active feature plan:** `specs/017-async-batch-inference/plan.md`
 <!-- SPECKIT END -->
 
 ---

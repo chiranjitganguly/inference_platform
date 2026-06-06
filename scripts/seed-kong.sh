@@ -170,6 +170,40 @@ create_admin_services() {
     # stripping the Authorization header before LiteLLM's own validation.
 }
 
+# ── Batch API (/v1/batch — async batch inference) ────────────────────────────
+
+create_batch_service() {
+    info "Creating batch-api service..."
+
+    curl -sf -X PUT "${KONG_ADMIN}/services/batch-api" \
+        -d "url=http://batch-api:8091" \
+        -d "connect_timeout=10000" \
+        -d "read_timeout=600000" \
+        -d "write_timeout=600000" \
+        >/dev/null
+    ok "Service: batch-api"
+
+    # Prefix route covers status + results — FastAPI handles sub-routing internally.
+    # Using prefix routing avoids curl form-encoding '+' as space in regex paths.
+    curl -sf -X PUT "${KONG_ADMIN}/services/batch-api/routes/batch-jobs-read" \
+        -H "Content-Type: application/json" \
+        -d '{"name":"batch-jobs-read","paths":["/v1/batch/jobs/"],"methods":["GET"],"strip_path":false}' \
+        >/dev/null
+    ok "Route: GET /v1/batch/jobs/* → batch-api"
+
+    curl -sf -X PUT "${KONG_ADMIN}/services/batch-api/routes/batch-jobs-submit" \
+        -H "Content-Type: application/json" \
+        -d '{"name":"batch-jobs-submit","paths":["/v1/batch/jobs"],"methods":["POST"],"strip_path":false}' \
+        >/dev/null
+    ok "Route: POST /v1/batch/jobs → batch-api"
+
+    _ensure_service_plugin batch-api key-auth \
+        -d "config.key_names[]=Authorization" \
+        -d "config.key_in_header=true" \
+        -d "config.hide_credentials=true"
+    ok "Plugin: key-auth on batch-api"
+}
+
 # ── Health service (/health — no auth) ───────────────────────────────────────
 
 create_health_service() {
@@ -327,7 +361,7 @@ verify_setup() {
     fi
     ok "Consumer: smoke-test-consumer is registered."
 
-    for svc in litellm-inference litellm-embeddings litellm-health portal-backend litellm-admin; do
+    for svc in litellm-inference litellm-embeddings litellm-health portal-backend litellm-admin batch-api; do
         local result
         result=$(curl -sf "${KONG_ADMIN}/services/${svc}" 2>/dev/null || echo "")
         if [[ -z "$result" ]]; then
@@ -389,6 +423,7 @@ main() {
     create_inference_service
     create_embeddings_service
     create_admin_services
+    create_batch_service
     create_health_service
     create_global_plugins
     create_rate_limiting_plugin

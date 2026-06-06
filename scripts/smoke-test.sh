@@ -851,6 +851,84 @@ fi
 
 printf '[INFO]    [015] Loki audit query: {service="kong"} | json | status="413"\n'
 
+# ── [017] Async Batch Inference ───────────────────────────────────────────────
+
+# [017] batch-api direct health — no auth required
+probe "[017] GET http://localhost:8091/health — batch-api direct health" \
+    "http://localhost:8091/health" 200
+
+if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+
+    # [017] US1 — submit a single-item batch, expect 202 with job_id (SC-001)
+    batch_resp=$(curl -sf -X POST "${KONG}/v1/batch/jobs" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"gpt-4o-mini","items":[{"index":0,"messages":[{"role":"user","content":"ping"}]}]}' \
+        2>/dev/null || echo "")
+    if [[ -n "$batch_resp" ]]; then
+        batch_job_id=$(echo "$batch_resp" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('job_id',''))" 2>/dev/null || echo "")
+        batch_status=$(echo "$batch_resp" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',''))" 2>/dev/null || echo "")
+        if [[ -n "$batch_job_id" && "$batch_status" == "queued" ]]; then
+            ok "[017] POST /v1/batch/jobs — 202 with job_id and status=queued (SC-001)"
+        else
+            fail "[017] POST /v1/batch/jobs — unexpected response: ${batch_resp}"
+        fi
+    else
+        fail "[017] POST /v1/batch/jobs — no response (batch-api not reachable through Kong)"
+    fi
+
+    # [017] US2 — poll status of the submitted job (SC-001)
+    if [[ -n "${batch_job_id:-}" ]]; then
+        status_resp=$(curl -sf "${KONG}/v1/batch/jobs/${batch_job_id}" \
+            -H "Authorization: ${SMOKE_API_KEY}" 2>/dev/null || echo "")
+        status_field=$(echo "$status_resp" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',''))" 2>/dev/null || echo "")
+        if [[ "$status_field" == "queued" || "$status_field" == "running" || "$status_field" == "completed" ]]; then
+            ok "[017] GET /v1/batch/jobs/{id} — 200 with valid status field: ${status_field}"
+        else
+            fail "[017] GET /v1/batch/jobs/{id} — unexpected status: '${status_field}'"
+        fi
+    fi
+
+    # [017] US2 — unknown job_id returns 404 (FR-003)
+    unknown_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        "${KONG}/v1/batch/jobs/00000000-0000-0000-0000-000000000000" \
+        -H "Authorization: ${SMOKE_API_KEY}" 2>/dev/null || echo "000")
+    if [[ "$unknown_code" == "404" ]]; then
+        ok "[017] GET /v1/batch/jobs/{unknown} — 404 Not Found"
+    else
+        fail "[017] GET /v1/batch/jobs/{unknown} — expected 404, got ${unknown_code}"
+    fi
+
+    # [017] US1 — empty items array returns 400 (FR-012)
+    empty_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        -X POST "${KONG}/v1/batch/jobs" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"gpt-4o","items":[]}' 2>/dev/null || echo "000")
+    if [[ "$empty_code" == "422" || "$empty_code" == "400" ]]; then
+        ok "[017] POST /v1/batch/jobs — empty items array rejected with ${empty_code}"
+    else
+        fail "[017] POST /v1/batch/jobs — expected 400/422 for empty items, got ${empty_code}"
+    fi
+
+    # [017] US1 — unauthenticated request returns 401 (constitution §IV)
+    unauth_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        -X POST "${KONG}/v1/batch/jobs" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"gpt-4o","items":[{"index":0,"messages":[{"role":"user","content":"x"}]}]}' \
+        2>/dev/null || echo "000")
+    if [[ "$unauth_code" == "401" ]]; then
+        ok "[017] POST /v1/batch/jobs — unauthenticated request returns 401"
+    else
+        fail "[017] POST /v1/batch/jobs — expected 401 for unauthenticated, got ${unauth_code}"
+    fi
+
+else
+    printf '[INFO]    [017] Skipping batch API probes — SMOKE_API_KEY not set\n'
+fi
+
+printf '[INFO]    [017] Results endpoint: GET /v1/batch/jobs/{id}/results (after job completes)\n'
+
 # ── Result ────────────────────────────────────────────────────────────────────
 
 printf '\n%d passed, %d failed\n\n' "$pass" "$fail"
