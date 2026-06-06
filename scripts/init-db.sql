@@ -11,6 +11,7 @@
 --   kong      — Kong services, routes, consumers, plugins
 --   phoenix   — Phoenix Arize LLM traces and spans (Phase 06)
 --   langfuse  — Langfuse prompt versions, evaluations, traces (Phase 06)
+--   batch     — Async batch inference job and item state (Phase 07 / feature 017)
 --
 -- Each CREATE DATABASE uses a NOT EXISTS guard so the statement is safe
 -- to re-execute (belt-and-suspenders against partial init recovery).
@@ -37,6 +38,9 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'phoenix')\gexec
 SELECT format('CREATE DATABASE %I', 'langfuse')
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'langfuse')\gexec
 
+SELECT format('CREATE DATABASE %I', 'batch')
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'batch')\gexec
+
 -- ── Grant privileges ─────────────────────────────────────────────────────────
 
 GRANT ALL PRIVILEGES ON DATABASE litellm  TO CURRENT_USER;
@@ -45,3 +49,4 @@ GRANT ALL PRIVILEGES ON DATABASE mlflow   TO CURRENT_USER;
 GRANT ALL PRIVILEGES ON DATABASE kong     TO CURRENT_USER;
 GRANT ALL PRIVILEGES ON DATABASE phoenix  TO CURRENT_USER;
 GRANT ALL PRIVILEGES ON DATABASE langfuse TO CURRENT_USER;
+GRANT ALL PRIVILEGES ON DATABASE batch    TO CURRENT_USER;

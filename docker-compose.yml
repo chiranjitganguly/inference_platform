@@ -80,11 +80,11 @@ services:
       KONG_PG_USER:     ${POSTGRES_USER}
       KONG_PG_PASSWORD: ${POSTGRES_PASSWORD}
       KONG_PROXY_LISTEN: "0.0.0.0:8080"
-      KONG_ADMIN_LISTEN: "127.0.0.1:8001"
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
       KONG_LOG_LEVEL:    notice
     ports:
-      - "8080:8080"   # Kong proxy — the only public port (constitution §2.1)
-      - "8001:8001"   # Kong admin — localhost only
+      - "8080:8080"           # Kong proxy — the only public port (constitution §2.1)
+      - "127.0.0.1:8001:8001" # Kong admin — host localhost only
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,7 +93,7 @@ services:
       litellm:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8001/status || exit 1"]
+      test: ["CMD", "kong", "health"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -238,10 +238,70 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # ── Batch inference API — feature 017 ────────────────────────────────────────
+
+  batch-api:
+    build:
+      context: ./services/batch-worker
+      dockerfile: Dockerfile
+    profiles: [core]
+    environment:
+      BATCH_DATABASE_URL:          postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/batch
+      REDIS_QUEUE_URL:             redis://redis-queue:6380
+      LITELLM_BASE_URL:            http://litellm:4000
+      LITELLM_MASTER_KEY:          ${LITELLM_MASTER_KEY}
+      MAX_CONCURRENT:              ${MAX_CONCURRENT:-4}
+      RESULTS_DIR:                 /results
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_SERVICE_NAME:           batch-worker
+    volumes:
+      - batch_results:/results
+    expose:
+      - "8091"
+    ports:
+      - "8091:8091"   # batch-api — dev inspection only
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+      litellm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8091/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  batch-worker:
+    build:
+      context: ./services/batch-worker
+      dockerfile: Dockerfile
+    profiles: [core]
+    command: ["rq", "worker", "--url", "redis://redis-queue:6380", "batch"]
+    environment:
+      BATCH_DATABASE_URL:          postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/batch
+      REDIS_QUEUE_URL:             redis://redis-queue:6380
+      LITELLM_BASE_URL:            http://litellm:4000
+      LITELLM_MASTER_KEY:          ${LITELLM_MASTER_KEY}
+      MAX_CONCURRENT:              ${MAX_CONCURRENT:-4}
+      RESULTS_DIR:                 /results
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_SERVICE_NAME:           batch-worker
+    volumes:
+      - batch_results:/results
+    depends_on:
+      batch-api:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pg_data:
   phoenix_data:
   langfuse_data:
+  batch_results:
 
 # ── Startup ordering for future services ────────────────────────────────────
 #

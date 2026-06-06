@@ -106,6 +106,45 @@ services:
           - GET
         strip_path: false
 
+  # ── Batch inference API — async job submission, polling, and result download ──
+  # Timeout is 600 s for result downloads (large JSONL files may take time to stream).
+  - name: batch-api
+    url: http://batch-api:8091
+    connect_timeout: 10000
+    read_timeout:    600000
+    write_timeout:   600000
+
+    routes:
+      # GET prefix route — covers both status and results; FastAPI handles sub-routing.
+      # Note: prefix routing avoids Kong Admin API form-encoding '+' as space in regex.
+      - name: batch-jobs-read
+        paths:
+          - /v1/batch/jobs/
+        methods:
+          - GET
+        strip_path: false
+        plugins:
+          - name: key-auth
+            config:
+              key_names:
+                - Authorization
+              key_in_header: true
+              hide_credentials: true
+
+      - name: batch-jobs-submit
+        paths:
+          - /v1/batch/jobs
+        methods:
+          - POST
+        strip_path: false
+        plugins:
+          - name: key-auth
+            config:
+              key_names:
+                - Authorization
+              key_in_header: true
+              hide_credentials: true
+
   # ── LiteLLM admin — key management (master key enforced by LiteLLM itself) ──
   - name: litellm-admin
     url: http://litellm:4000
