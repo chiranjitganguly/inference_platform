@@ -238,6 +238,34 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # ── Guardrails service — feature 018 ─────────────────────────────────────────
+  # Sits between Kong and LiteLLM (constitution §2.1 request chain).
+  # Handles vision request validation, 503 normalisation, and audit logging.
+  # Kong's litellm-inference upstream must point here (:8088), not to LiteLLM directly.
+
+  guardrails:
+    build:
+      context: ./services/guardrails
+      dockerfile: Dockerfile
+    profiles: [core]
+    environment:
+      LITELLM_BASE_URL:   http://litellm:4000
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      MAX_IMAGES_PER_REQUEST: ${MAX_IMAGES_PER_REQUEST:-5}
+    # Port 8088 has no host binding — all traffic via Kong :8080 (constitution §2.1)
+    expose:
+      - "8088"
+    depends_on:
+      litellm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8088/health')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
   # ── Batch inference API — feature 017 ────────────────────────────────────────
 
   batch-api:

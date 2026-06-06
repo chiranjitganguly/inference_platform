@@ -929,6 +929,117 @@ fi
 
 printf '[INFO]    [017] Results endpoint: GET /v1/batch/jobs/{id}/results (after job completes)\n'
 
+# ── [018] Multimodal Image Support ───────────────────────────────────────────
+
+if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+
+    # [018] AC-1 — URL image request returns HTTP 200 with non-empty content (US1)
+    vision_url_resp=$(curl -s --max-time 30 \
+        -X POST "${KONG}/v1/chat/completions" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "gpt-4o",
+          "messages": [{
+            "role": "user",
+            "content": [
+              {"type": "text", "text": "What colour is dominant in this image?"},
+              {"type": "image_url", "image_url": {
+                "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/240px-PNG_transparency_demonstration_1.png"
+              }}
+            ]
+          }]
+        }' 2>/dev/null)
+    vision_url_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+        -X POST "${KONG}/v1/chat/completions" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "gpt-4o",
+          "messages": [{
+            "role": "user",
+            "content": [
+              {"type": "text", "text": "What colour is dominant in this image?"},
+              {"type": "image_url", "image_url": {
+                "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/240px-PNG_transparency_demonstration_1.png"
+              }}
+            ]
+          }]
+        }' 2>/dev/null)
+    vision_content=$(printf '%s' "$vision_url_resp" \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('choices',[{}])[0].get('message',{}).get('content',''))" 2>/dev/null || echo "")
+    if [[ "$vision_url_status" == "200" && -n "$vision_content" ]]; then
+        ok "[018] POST /v1/chat/completions — URL image returns HTTP 200 with non-empty content (AC-1)"
+    else
+        fail "[018] POST /v1/chat/completions — URL image: expected 200+content, got HTTP ${vision_url_status}"
+    fi
+
+    # [018] AC-3 — non-vision model with image rejected with 400 vision_model_required (US3)
+    reject_resp=$(curl -s -w '\n%{http_code}' --max-time 10 \
+        -X POST "${KONG}/v1/chat/completions" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "command-r-plus",
+          "messages": [{
+            "role": "user",
+            "content": [
+              {"type": "text", "text": "What is this?"},
+              {"type": "image_url", "image_url": {"url": "https://example.com/img.jpg"}}
+            ]
+          }]
+        }' 2>/dev/null)
+    reject_body=$(printf '%s' "$reject_resp" | head -n 1)
+    reject_status=$(printf '%s' "$reject_resp" | tail -n 1)
+    reject_code=$(printf '%s' "$reject_body" \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error',{}).get('code',''))" 2>/dev/null || echo "")
+    if [[ "$reject_status" == "400" && "$reject_code" == "vision_model_required" ]]; then
+        ok "[018] POST /v1/chat/completions — non-vision model rejected HTTP 400 code=vision_model_required (AC-3)"
+    else
+        fail "[018] POST /v1/chat/completions — expected 400/vision_model_required, got HTTP ${reject_status} code='${reject_code}'"
+    fi
+
+    # [018] AC-4 — stream:true with image rejected with 400 vision_streaming_not_supported
+    stream_vision_resp=$(curl -s -w '\n%{http_code}' --max-time 10 \
+        -X POST "${KONG}/v1/chat/completions" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "gpt-4o",
+          "stream": true,
+          "messages": [{
+            "role": "user",
+            "content": [
+              {"type": "text", "text": "Describe."},
+              {"type": "image_url", "image_url": {"url": "https://example.com/img.jpg"}}
+            ]
+          }]
+        }' 2>/dev/null)
+    stream_vision_body=$(printf '%s' "$stream_vision_resp" | head -n 1)
+    stream_vision_status=$(printf '%s' "$stream_vision_resp" | tail -n 1)
+    stream_vision_code=$(printf '%s' "$stream_vision_body" \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error',{}).get('code',''))" 2>/dev/null || echo "")
+    if [[ "$stream_vision_status" == "400" && "$stream_vision_code" == "vision_streaming_not_supported" ]]; then
+        ok "[018] POST /v1/chat/completions — stream+image rejected HTTP 400 code=vision_streaming_not_supported (AC-4)"
+    else
+        fail "[018] POST /v1/chat/completions — expected 400/vision_streaming_not_supported, got HTTP ${stream_vision_status} code='${stream_vision_code}'"
+    fi
+
+    # [018] AC-6 — text-only request regression (no vision validation interference)
+    probe "[018] POST /v1/chat/completions — text-only regression (AC-6)" \
+        "${KONG}/v1/chat/completions" 200 \
+        -X POST \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"smoke regression check"}]}'
+
+else
+    printf '[INFO]    [018] Skipping multimodal probes — SMOKE_API_KEY not set\n'
+fi
+
+printf '[INFO]    [018] Base64 image test: see specs/018-multimodal-image-support/quickstart.md AC-2\n'
+printf '[INFO]    [018] Audit log check: make logs svc=guardrails | grep image_part_count\n'
+
 # ── Result ────────────────────────────────────────────────────────────────────
 
 printf '\n%d passed, %d failed\n\n' "$pass" "$fail"

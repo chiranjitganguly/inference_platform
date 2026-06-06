@@ -65,7 +65,7 @@ create_inference_service() {
     info "Creating litellm-inference service..."
 
     curl -sf -X PUT "${KONG_ADMIN}/services/litellm-inference" \
-        -d "url=http://litellm:4000" \
+        -d "url=http://guardrails:8088" \
         -d "connect_timeout=10000" \
         -d "read_timeout=60000" \
         -d "write_timeout=60000" \
@@ -102,7 +102,7 @@ create_embeddings_service() {
     info "Creating litellm-embeddings service..."
 
     curl -sf -X PUT "${KONG_ADMIN}/services/litellm-embeddings" \
-        -d "url=http://litellm:4000" \
+        -d "url=http://guardrails:8088" \
         -d "connect_timeout=10000" \
         -d "read_timeout=120000" \
         -d "write_timeout=120000" \

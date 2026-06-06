@@ -30,6 +30,7 @@ model_list:
         - chat
         - streaming
         - function-calling
+        - vision
 
   - model_name: gpt-4.1
     litellm_params:
@@ -124,6 +125,7 @@ model_list:
         - chat
         - streaming
         - function-calling
+        - vision
 
   # ── Cohere ───────────────────────────────────────────────────────────────────
   - model_name: command-r-plus
@@ -193,13 +195,13 @@ litellm_settings:
 
   fallbacks:
     - gpt-4o:        [claude-sonnet, gemini-pro]
-    - gpt-4o-mini:   [claude-haiku, gemini-flash]
+    - gpt-4o-mini:   [gemini-flash, claude-sonnet]
     - gpt-4.1:       [claude-sonnet, gemini-pro]
     - o4-mini:       [claude-haiku, gemini-flash]
     - claude-sonnet: [gpt-4o, gemini-pro]
     - claude-haiku:  [gpt-4o-mini, gemini-flash]
     - gemini-pro:    [gpt-4o, claude-sonnet]
-    - gemini-flash:  [gpt-4o-mini, claude-haiku]
+    - gemini-flash:  [gpt-4o-mini, gemini-pro]
     - command-r-plus: [gpt-4o, claude-sonnet]
 
   context_window_fallbacks:
