@@ -162,6 +162,34 @@ services:
           - DELETE
         strip_path: true
 
+  # ── WebSocket streaming — feature 021 ────────────────────────────────────────
+  # Routes /ws/v1/chat/completions to the guardrails service.
+  # read_timeout / write_timeout set to 120 s to keep long-lived streams alive.
+  # hide_credentials: false so Kong forwards X-Consumer-Username to guardrails
+  # (needed for per-key connection-limit tracking). The API key is never forwarded
+  # to LiteLLM — the guardrails WS handler strips it before the SSE call.
+  - name: litellm-ws
+    url: http://guardrails:8088
+    connect_timeout: 5000
+    read_timeout:    120000
+    write_timeout:   120000
+
+    routes:
+      - name: ws-chat-completions
+        paths:
+          - /ws/v1/chat/completions
+        protocols:
+          - http
+          - ws
+        strip_path: false
+        plugins:
+          - name: key-auth
+            config:
+              key_names:
+                - Authorization
+              key_in_header: true
+              hide_credentials: false
+
 # ── Global Plugins ────────────────────────────────────────────────────────────
 
 plugins:
