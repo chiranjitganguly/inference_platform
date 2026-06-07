@@ -18,7 +18,7 @@ decision. The invariants there are non-negotiable.
 Current phase and active feature are tracked in `docs/progress.md`.
 
 <!-- SPECKIT START -->
-**Active feature plan:** `specs/019-function-calling/plan.md`
+**Active feature plan:** `specs/020-structured-json-output/plan.md`
 <!-- SPECKIT END -->
 
 ---
