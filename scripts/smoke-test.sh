@@ -1040,6 +1040,64 @@ fi
 printf '[INFO]    [018] Base64 image test: see specs/018-multimodal-image-support/quickstart.md AC-2\n'
 printf '[INFO]    [018] Audit log check: make logs svc=guardrails | grep image_part_count\n'
 
+# ── [019] Function Calling Support ───────────────────────────────────────────
+
+if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+
+    # [019] AC-1 — auto tool selection: weather message → tool_calls with valid JSON args
+    fc_resp=$(curl -s --max-time 30 \
+        -X POST "${KONG}/v1/chat/completions" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "gpt-4o",
+          "tool_choice": "auto",
+          "tools": [{"type":"function","function":{"name":"get_weather","description":"Get current weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],
+          "messages": [{"role":"user","content":"What is the weather in London?"}]
+        }' 2>/dev/null)
+    fc_finish=$(printf '%s' "$fc_resp" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['choices'][0]['finish_reason'])" 2>/dev/null || echo "")
+    fc_name=$(printf '%s' "$fc_resp" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['choices'][0]['message']['tool_calls'][0]['function']['name'])" 2>/dev/null || echo "")
+    fc_args=$(printf '%s' "$fc_resp" | python3 -c "import sys,json; d=json.load(sys.stdin); args=d['choices'][0]['message']['tool_calls'][0]['function']['arguments']; json.loads(args); print('ok')" 2>/dev/null || echo "invalid")
+    if [[ "$fc_finish" == "tool_calls" && "$fc_name" == "get_weather" && "$fc_args" == "ok" ]]; then
+        ok "[019] POST /v1/chat/completions — auto tool selection: finish_reason=tool_calls, fn=get_weather, args valid JSON (AC-1)"
+    else
+        fail "[019] POST /v1/chat/completions — auto tool selection: finish=${fc_finish} fn=${fc_name} args=${fc_args}"
+    fi
+
+    # [019] AC-4 — non-FC model + tools → 400 function_calling_model_required
+    fc_reject_resp=$(curl -s -w '\n%{http_code}' --max-time 10 \
+        -X POST "${KONG}/v1/chat/completions" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "claude-haiku",
+          "tools": [{"type":"function","function":{"name":"test","parameters":{}}}],
+          "messages": [{"role":"user","content":"test"}]
+        }' 2>/dev/null)
+    fc_reject_body=$(printf '%s' "$fc_reject_resp" | head -n 1)
+    fc_reject_status=$(printf '%s' "$fc_reject_resp" | tail -n 1)
+    fc_reject_code=$(printf '%s' "$fc_reject_body" \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error',{}).get('code',''))" 2>/dev/null || echo "")
+    if [[ "$fc_reject_status" == "400" && "$fc_reject_code" == "function_calling_model_required" ]]; then
+        ok "[019] POST /v1/chat/completions — non-FC model rejected HTTP 400 code=function_calling_model_required (AC-4)"
+    else
+        fail "[019] POST /v1/chat/completions — expected 400/function_calling_model_required, got HTTP ${fc_reject_status} code='${fc_reject_code}'"
+    fi
+
+    # [019] AC-7 — text-only regression (no tools, unaffected by FC gate)
+    probe "[019] POST /v1/chat/completions — text-only regression after FC feature (AC-7)" \
+        "${KONG}/v1/chat/completions" 200 \
+        -X POST \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"smoke regression check"}]}'
+
+else
+    printf '[INFO]    [019] Skipping function-calling probes — SMOKE_API_KEY not set\n'
+fi
+
+printf '[INFO]    [019] Audit log check: make logs svc=guardrails | grep tool_count\n'
+
 # ── Result ────────────────────────────────────────────────────────────────────
 
 printf '\n%d passed, %d failed\n\n' "$pass" "$fail"
