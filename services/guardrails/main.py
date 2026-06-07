@@ -31,6 +31,7 @@ All validation modules are imported with a try/except to support both package im
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -150,6 +151,10 @@ async def _lifespan(application: FastAPI) -> AsyncIterator[None]:
         len(so_cache.native_model_names),
         len(so_cache.prompt_model_names),
     )
+
+    # WebSocket connection tracking (feature 021)
+    application.state.ws_connections: dict[str, int] = {}
+    application.state.ws_lock = asyncio.Lock()
     yield
 
 
@@ -734,3 +739,14 @@ def _normalise_503(upstream: httpx.Response, request_body: bytes) -> Response:
         status_code=503,
         media_type="application/json",
     )
+
+
+# ── WebSocket streaming — feature 021 ────────────────────────────────────────
+# Import and register the WS handler after the app and all helpers are defined
+# so the handler module can import _write_audit, _validate_*, etc. from this module.
+try:
+    from .websocket import ws_chat_completions  # package import (local dev / tests)
+except ImportError:
+    from websocket import ws_chat_completions  # type: ignore[no-redef]  # flat import (Docker)
+
+app.add_api_websocket_route("/ws/v1/chat/completions", ws_chat_completions)

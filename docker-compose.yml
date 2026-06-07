@@ -252,6 +252,8 @@ services:
       LITELLM_BASE_URL:   http://litellm:4000
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       MAX_IMAGES_PER_REQUEST: ${MAX_IMAGES_PER_REQUEST:-5}
+      WS_MAX_CONNECTIONS_PER_KEY: ${WS_MAX_CONNECTIONS_PER_KEY:-10}
+      WS_IDLE_TIMEOUT_SECONDS:    ${WS_IDLE_TIMEOUT_SECONDS:-300}
     # Port 8088 has no host binding — all traffic via Kong :8080 (constitution §2.1)
     expose:
       - "8088"
