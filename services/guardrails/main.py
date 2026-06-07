@@ -4,26 +4,30 @@ Guardrails service — the middle layer in the Kong → Guardrails → LiteLLM r
 This service sits between Kong (the API gateway) and LiteLLM (the model proxy). Every
 inference request passes through it. Its responsibilities are:
 
-  1. Vision validation   : pre-proxy gate for multimodal image requests (vision.py).
-  2. Function-calling    : pre-proxy gate for tool/function requests (function_calling.py)
-                           AND post-proxy response validation (FR-016).
-  3. Embeddings metadata : injects no_log=True so Phoenix/Langfuse skip embedding traces.
-  4. 503 normalisation   : rewrites LiteLLM's fallback-exhausted error to the platform schema.
-  5. Audit logging       : writes a metadata-only structured log entry for every request
-                           (no prompt content, no image data, no tool arguments — constitution §II).
+  1. Vision validation      : pre-proxy gate for multimodal image requests (vision.py).
+  2. Function-calling       : pre-proxy gate for tool/function requests (function_calling.py)
+                              AND post-proxy response validation (FR-016).
+  3. Structured output      : pre-proxy gate for json_schema requests (structured_output.py)
+                              AND post-proxy retry loop guaranteeing schema-conforming JSON.
+  4. Embeddings metadata    : injects no_log=True so Phoenix/Langfuse skip embedding traces.
+  5. 503 normalisation      : rewrites LiteLLM's fallback-exhausted error to the platform schema.
+  6. Audit logging          : writes a metadata-only structured log entry for every request
+                              (no prompt content, no image data, no tool arguments,
+                              no schema content — constitution §II).
 
 Request flow through this file:
   proxy()
-    ├── _inject_no_log()          [embeddings only]
-    ├── _validate_vision()        [chat/completions with image parts]
+    ├── _inject_no_log()              [embeddings only]
+    ├── _validate_vision()            [chat/completions with image parts]
     ├── _validate_function_calling()  [chat/completions with tools]
-    ├── upstream HTTP call (LiteLLM)
+    ├── _validate_structured_output() [chat/completions with response_format.type=json_schema]
+    ├── upstream HTTP call (LiteLLM) — with retry loop for structured output requests
     ├── _write_audit()
-    ├── _normalise_503()          [on 503 from LiteLLM]
-    └── validate_tool_call_response()  [on 200 when tools were present]
+    ├── _normalise_503()              [on 503 from LiteLLM]
+    └── validate_tool_call_response() [on 200 when tools were present, non-SO only]
 
-All validation modules (vision.py, function_calling.py) are imported with a try/except
-to support both package imports (local dev / tests) and flat imports (Docker CWD=/app).
+All validation modules are imported with a try/except to support both package imports
+(local dev / tests) and flat imports (Docker CWD=/app).
 """
 from __future__ import annotations
 
@@ -54,6 +58,14 @@ try:
         validate_function_calling_request,
         validate_tool_call_response,
     )
+    from .structured_output import (
+        StructuredOutputCapabilityCache,
+        compute_schema_hash,
+        has_structured_output_request,
+        inject_schema_metadata,
+        validate_structured_output_request,
+        validate_structured_output_response,
+    )
 except ImportError:
     from vision import (  # flat import (Docker — CWD is /app)  # noqa: PLC0415
         VisionCapabilityCache,
@@ -69,11 +81,20 @@ except ImportError:
         validate_function_calling_request,
         validate_tool_call_response,
     )
+    from structured_output import (  # noqa: PLC0415
+        StructuredOutputCapabilityCache,
+        compute_schema_hash,
+        has_structured_output_request,
+        inject_schema_metadata,
+        validate_structured_output_request,
+        validate_structured_output_response,
+    )
 
 logger = logging.getLogger("guardrails")
 audit = logging.getLogger("guardrails.audit")
 
 LITELLM_BASE_URL = os.environ.get("LITELLM_BASE_URL", "http://litellm:4000")
+MAX_SO_RETRIES: int = int(os.environ.get("STRUCTURED_OUTPUT_MAX_RETRIES", "3"))
 
 
 @asynccontextmanager
@@ -120,10 +141,19 @@ async def _lifespan(application: FastAPI) -> AsyncIterator[None]:
         "FunctionCallingCapabilityCache loaded: %d function-capable models",
         len(fc_cache.fc_model_names),
     )
+
+    so_cache = StructuredOutputCapabilityCache()
+    await so_cache.load()
+    application.state.so_cache = so_cache
+    logger.info(
+        "StructuredOutputCapabilityCache loaded: %d native, %d prompt-based models",
+        len(so_cache.native_model_names),
+        len(so_cache.prompt_model_names),
+    )
     yield
 
 
-app = FastAPI(title="Guardrails Service", version="0.2.0", lifespan=_lifespan)
+app = FastAPI(title="Guardrails Service", version="0.3.0", lifespan=_lifespan)
 
 
 async def _stream_bytes(response: httpx.Response) -> AsyncIterator[bytes]:
@@ -233,6 +263,10 @@ async def proxy(request: Request, path: str) -> Response:
     image_part_count = 0
     tool_count = 0
     _had_tools = False
+    _so_schema_name = ""
+    _so_schema: dict[str, Any] = {}
+    _so_schema_hash = ""
+    _had_so = False
 
     if path == "v1/chat/completions" and request.method == "POST":
         result = await _validate_vision(body, request)
@@ -246,22 +280,85 @@ async def proxy(request: Request, path: str) -> Response:
         body, tool_count = fc_result
         _had_tools = tool_count > 0
 
+        so_gate = await _validate_structured_output(body, request)
+        if isinstance(so_gate, Response):
+            return so_gate
+        body, _so_schema_name, _so_schema, _so_schema_hash = so_gate
+        _had_so = bool(_so_schema_name)
+
     headers = {
         k: v
         for k, v in request.headers.items()
         if k.lower() not in ("host", "content-length", "transfer-encoding")
     }
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
-        upstream = await client.request(
-            method=request.method,
-            url=f"{LITELLM_BASE_URL}/{path}",
-            headers=headers,
-            content=body,
-            params=dict(request.query_params),
-        )
+    so_retry_count = 0
 
-    _write_audit(request, body, upstream.status_code, image_part_count, tool_count)
+    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
+        if _had_so:
+            # Retry loop: attempt up to MAX_SO_RETRIES + 1 total calls.
+            # On each attempt, validate choices[0].message.content against the schema.
+            # Break on pass or non-200; return 422 after retries are exhausted.
+            upstream = None
+            for attempt in range(MAX_SO_RETRIES + 1):
+                upstream = await client.request(
+                    method=request.method,
+                    url=f"{LITELLM_BASE_URL}/{path}",
+                    headers=headers,
+                    content=body,
+                    params=dict(request.query_params),
+                )
+                if upstream.status_code != 200:
+                    break
+                try:
+                    resp_json_so: dict[str, Any] = json.loads(upstream.content)
+                except Exception:
+                    break  # non-JSON 200 — pass through unchanged
+                so_check = validate_structured_output_response(resp_json_so, _so_schema)
+                if so_check == "pass":
+                    break
+                # "retry" — schema mismatch; exhaust budget or loop again
+                if attempt == MAX_SO_RETRIES:
+                    conformance_error: dict[str, Any] = {
+                        "error": {
+                            "message": (
+                                f"Model response did not conform to the provided JSON schema "
+                                f"after {MAX_SO_RETRIES + 1} attempt(s)."
+                            ),
+                            "type": "schema_conformance_failure",
+                            "code": "schema_conformance_failure",
+                        },
+                        "retry_count": MAX_SO_RETRIES,
+                        "schema_name": _so_schema_name,
+                    }
+                    _write_audit(
+                        request, body, 422,
+                        schema_name=_so_schema_name,
+                        so_retry_count=MAX_SO_RETRIES,
+                    )
+                    return Response(
+                        content=json.dumps(conformance_error),
+                        status_code=422,
+                        media_type="application/json",
+                    )
+                so_retry_count = attempt + 1
+        else:
+            upstream = await client.request(
+                method=request.method,
+                url=f"{LITELLM_BASE_URL}/{path}",
+                headers=headers,
+                content=body,
+                params=dict(request.query_params),
+            )
+
+    assert upstream is not None  # always set: either branch executes at least once
+
+    _write_audit(
+        request, body, upstream.status_code,
+        image_part_count, tool_count,
+        schema_name=_so_schema_name,
+        so_retry_count=so_retry_count,
+    )
 
     if upstream.status_code == 503:
         return _normalise_503(upstream, body)
@@ -275,8 +372,9 @@ async def proxy(request: Request, path: str) -> Response:
             media_type="text/event-stream",
         )
 
-    # Post-proxy: validate tool_call response arguments (FR-016).
-    if _had_tools and upstream.status_code == 200:
+    # Post-proxy: validate tool_call response arguments (FR-016). Not applied to SO
+    # requests since structured output and function calling are mutually exclusive.
+    if _had_tools and not _had_so and upstream.status_code == 200:
         try:
             resp_json: dict[str, Any] = json.loads(upstream.content)
             fc_resp_error = validate_tool_call_response(resp_json)
@@ -423,12 +521,75 @@ async def _validate_function_calling(
     return body, count_tools(payload)
 
 
+async def _validate_structured_output(
+    body: bytes, request: Request
+) -> tuple[bytes, str, dict[str, Any], str] | Response:
+    """
+    Pre-proxy gate: validate and prepare structured output requests.
+
+    Bridges between the HTTP layer (raw bytes, FastAPI Request) and the pure
+    validation logic in structured_output.py. Mirrors _validate_vision() and
+    _validate_function_calling() in structure.
+
+    Flow:
+      1. Parse body as JSON. On failure, return (body, "", {}, "") — non-SO path.
+      2. has_structured_output_request(): if False, return immediately (zero cost).
+      3. validate_structured_output_request(): streaming guard, field checks, model
+         cap gate, schema self-validity. On failure, return a 4xx/422 Response.
+      4. On success: extract schema_name, schema, compute hash, inject metadata.
+
+    Returns:
+      On success: (new_body_bytes, schema_name, schema_dict, schema_hash)
+                  schema_name is empty string for non-SO requests.
+      On validation failure: a FastAPI Response with the error body. proxy() returns
+                             this directly to the caller.
+    """
+    try:
+        payload: dict[str, Any] = json.loads(body)
+    except Exception:
+        return body, "", {}, ""
+
+    if not has_structured_output_request(payload):
+        return body, "", {}, ""
+
+    so_cache: StructuredOutputCapabilityCache = request.app.state.so_cache
+    error_result = validate_structured_output_request(payload, so_cache)
+    if error_result is not None:
+        error_body, status_code = error_result
+        return Response(
+            content=json.dumps(error_body),
+            status_code=status_code,
+            media_type="application/json",
+        )
+
+    rf: dict[str, Any] = payload.get("response_format", {})
+    schema_name: str = rf.get("name", "")
+    schema: dict[str, Any] = rf.get("schema", {})
+    schema_hash = compute_schema_hash(schema)
+    new_payload = inject_schema_metadata(payload, schema_name, schema_hash)
+    # OpenAI's API (and LiteLLM v1.52.0) requires the nested json_schema shape:
+    #   {"type": "json_schema", "json_schema": {"name": ..., "strict": ..., "schema": ...}}
+    # Our public contract accepts the flat shape (name/strict/schema at response_format level)
+    # so we normalise here before forwarding to LiteLLM.
+    new_payload["response_format"] = {
+        "type": "json_schema",
+        "json_schema": {
+            "name": schema_name,
+            "strict": rf.get("strict", True),
+            "schema": schema,
+        },
+    }
+    return json.dumps(new_payload).encode(), schema_name, schema, schema_hash
+
+
 def _write_audit(
     request: Request,
     body: bytes,
     status_code: int,
     image_part_count: int = 0,
     tool_count: int = 0,
+    schema_name: str = "",
+    so_retry_count: int = 0,
 ) -> None:
     """
     Write a structured, metadata-only audit log entry for every proxied request.
@@ -455,10 +616,15 @@ def _write_audit(
     Args:
         request:          The original FastAPI Request (used for headers).
         body:             The request body bytes, used only to extract "model".
-                          Content (messages, tools, images) is never read.
+                          Content (messages, tools, images, schema) is never read.
         status_code:      HTTP status code returned by the upstream LiteLLM response.
         image_part_count: Number of image_url parts in the request (0 for text-only).
         tool_count:       Number of tool definitions in the request (0 for non-tool requests).
+        schema_name:      response_format.name for SO requests; "" for all others.
+                          This is a caller-chosen identifier, not prompt content —
+                          permitted in audit entries per constitution §6.3.
+        so_retry_count:   Number of retry attempts that occurred for SO requests (0 = no
+                          retries, either non-SO or first-attempt pass).
 
     Returns: None. Side effect: one JSON line emitted to the "guardrails.audit" logger.
 
@@ -472,6 +638,8 @@ def _write_audit(
         scanner_blocked  Always False (content scanning is a future phase).
         image_part_count Count of image_url parts (0 for text-only requests).
         tool_count       Count of tool definitions (0 for non-function-calling requests).
+        schema_name      Schema identifier for SO requests; "" otherwise.
+        so_retry_count   Retry attempts for SO requests; 0 otherwise.
     """
     api_key: str = request.headers.get("authorization", "")
     key_hash = hashlib.sha256(api_key.encode()).hexdigest() if api_key else ""
@@ -491,6 +659,8 @@ def _write_audit(
         "scanner_blocked": False,
         "image_part_count": image_part_count,
         "tool_count": tool_count,
+        "schema_name": schema_name,
+        "so_retry_count": so_retry_count,
     }
     audit.info(json.dumps(entry))
 

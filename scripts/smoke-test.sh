@@ -1098,6 +1098,148 @@ fi
 
 printf '[INFO]    [019] Audit log check: make logs svc=guardrails | grep tool_count\n'
 
+# ── [020] Structured JSON Output ─────────────────────────────────────────────
+
+if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+
+    # [020] SC-001 — valid json_schema request returns HTTP 200 with JSON content (US1)
+    so_resp=$(curl -s --max-time 30 \
+        -X POST "${KONG}/v1/chat/completions" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "gpt-4o-mini",
+          "response_format": {
+            "type": "json_schema",
+            "name": "smoke_invoice",
+            "strict": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "invoice_number": {"type": "string"},
+                "total": {"type": "number"}
+              },
+              "required": ["invoice_number", "total"],
+              "additionalProperties": false
+            }
+          },
+          "messages": [{"role":"user","content":"Extract: Invoice INV-SMOKE total $42.00"}]
+        }' 2>/dev/null)
+    so_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+        -X POST "${KONG}/v1/chat/completions" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "gpt-4o-mini",
+          "response_format": {
+            "type": "json_schema",
+            "name": "smoke_invoice",
+            "strict": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "invoice_number": {"type": "string"},
+                "total": {"type": "number"}
+              },
+              "required": ["invoice_number", "total"],
+              "additionalProperties": false
+            }
+          },
+          "messages": [{"role":"user","content":"Extract: Invoice INV-SMOKE total $42.00"}]
+        }' 2>/dev/null)
+    so_content=$(printf '%s' "$so_resp" \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); c=d['choices'][0]['message']['content']; json.loads(c); print('ok')" 2>/dev/null || echo "invalid")
+    if [[ "$so_status" == "200" && "$so_content" == "ok" ]]; then
+        ok "[020] POST /v1/chat/completions — json_schema returns HTTP 200 with parseable JSON content (SC-001)"
+    else
+        fail "[020] POST /v1/chat/completions — json_schema: expected 200+json-content, got HTTP ${so_status} content=${so_content}"
+    fi
+
+    # [020] SC-002 — stream:true + json_schema → 400 structured_output_streaming_not_supported (US1)
+    so_stream_resp=$(curl -s -w '\n%{http_code}' --max-time 10 \
+        -X POST "${KONG}/v1/chat/completions" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "gpt-4o-mini",
+          "stream": true,
+          "response_format": {
+            "type": "json_schema",
+            "name": "smoke_schema",
+            "strict": true,
+            "schema": {"type": "object", "properties": {}, "additionalProperties": false}
+          },
+          "messages": [{"role":"user","content":"hi"}]
+        }' 2>/dev/null)
+    so_stream_body=$(printf '%s' "$so_stream_resp" | head -n 1)
+    so_stream_status=$(printf '%s' "$so_stream_resp" | tail -n 1)
+    so_stream_code=$(printf '%s' "$so_stream_body" \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error',{}).get('code',''))" 2>/dev/null || echo "")
+    if [[ "$so_stream_status" == "400" && "$so_stream_code" == "structured_output_streaming_not_supported" ]]; then
+        ok "[020] POST /v1/chat/completions — stream+json_schema rejected HTTP 400 code=structured_output_streaming_not_supported (SC-002)"
+    else
+        fail "[020] POST /v1/chat/completions — stream+json_schema: expected 400/structured_output_streaming_not_supported, got HTTP ${so_stream_status} code='${so_stream_code}'"
+    fi
+
+    # [020] SC-002 — invalid schema rejected with 422 invalid_json_schema (US2)
+    so_invalid_resp=$(curl -s -w '\n%{http_code}' --max-time 10 \
+        -X POST "${KONG}/v1/chat/completions" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "gpt-4o-mini",
+          "response_format": {
+            "type": "json_schema",
+            "name": "bad_schema",
+            "strict": true,
+            "schema": {"type": "not_a_valid_type"}
+          },
+          "messages": [{"role":"user","content":"hi"}]
+        }' 2>/dev/null)
+    so_invalid_body=$(printf '%s' "$so_invalid_resp" | head -n 1)
+    so_invalid_status=$(printf '%s' "$so_invalid_resp" | tail -n 1)
+    so_invalid_code=$(printf '%s' "$so_invalid_body" \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error',{}).get('code',''))" 2>/dev/null || echo "")
+    if [[ "$so_invalid_status" == "422" && "$so_invalid_code" == "invalid_json_schema" ]]; then
+        ok "[020] POST /v1/chat/completions — invalid schema rejected HTTP 422 code=invalid_json_schema (SC-002)"
+    else
+        fail "[020] POST /v1/chat/completions — invalid schema: expected 422/invalid_json_schema, got HTTP ${so_invalid_status} code='${so_invalid_code}'"
+    fi
+
+    # [020] SC-003 — missing response_format.name → 400 invalid_structured_output_request (US2)
+    so_noname_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+        -X POST "${KONG}/v1/chat/completions" \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "gpt-4o-mini",
+          "response_format": {
+            "type": "json_schema",
+            "schema": {"type": "object", "additionalProperties": false}
+          },
+          "messages": [{"role":"user","content":"hi"}]
+        }' 2>/dev/null)
+    if [[ "$so_noname_status" == "400" ]]; then
+        ok "[020] POST /v1/chat/completions — missing name rejected HTTP 400 (SC-003)"
+    else
+        fail "[020] POST /v1/chat/completions — missing name: expected 400, got HTTP ${so_noname_status}"
+    fi
+
+    # [020] SC-004 — text-only regression unaffected by SO gate (US1)
+    probe "[020] POST /v1/chat/completions — text-only regression unaffected by SO gate (SC-004)" \
+        "${KONG}/v1/chat/completions" 200 \
+        -X POST \
+        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"smoke regression check 020"}]}'
+
+else
+    printf '[INFO]    [020] Skipping structured output probes — SMOKE_API_KEY not set\n'
+fi
+
+printf '[INFO]    [020] Audit log check: make logs svc=guardrails | grep schema_name\n'
+printf '[INFO]    [020] Phoenix span check: filter by metadata.schema_name at http://localhost:6006\n'
+
 # ── Result ────────────────────────────────────────────────────────────────────
 
 printf '\n%d passed, %d failed\n\n' "$pass" "$fail"

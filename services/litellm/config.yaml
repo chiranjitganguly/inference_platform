@@ -15,6 +15,7 @@ model_list:
         - streaming
         - function-calling
         - vision
+        - json_schema
 
   - model_name: gpt-4o-mini
     litellm_params:
@@ -31,6 +32,7 @@ model_list:
         - streaming
         - function-calling
         - vision
+        - json_schema
 
   - model_name: gpt-4.1
     litellm_params:
@@ -47,6 +49,7 @@ model_list:
         - streaming
         - function-calling
         - vision
+        - json_schema
 
   - model_name: o4-mini
     litellm_params:
@@ -62,6 +65,7 @@ model_list:
         - chat
         - streaming
         - function-calling
+        - json_schema
 
   # ── Anthropic ────────────────────────────────────────────────────────────────
   - model_name: claude-sonnet
@@ -79,6 +83,7 @@ model_list:
         - streaming
         - function-calling
         - vision
+        - json_schema
 
   - model_name: claude-haiku
     litellm_params:
@@ -93,6 +98,7 @@ model_list:
       capabilities:
         - chat
         - streaming
+        - json_schema
 
   # ── Google ───────────────────────────────────────────────────────────────────
   - model_name: gemini-pro
@@ -110,6 +116,7 @@ model_list:
         - streaming
         - function-calling
         - vision
+        - json_schema
 
   - model_name: gemini-flash
     litellm_params:
@@ -126,6 +133,7 @@ model_list:
         - streaming
         - function-calling
         - vision
+        - json_schema
 
   # ── Cohere ───────────────────────────────────────────────────────────────────
   - model_name: command-r-plus
@@ -142,6 +150,7 @@ model_list:
         - chat
         - streaming
         - function-calling
+        - json_schema
 
   # ── OpenAI Embeddings ────────────────────────────────────────────────────────
   - model_name: text-embedding-3-small
