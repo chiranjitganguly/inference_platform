@@ -73,8 +73,15 @@
 - [x] T013 [P] Create `tests/smoke/test_cache_flush.sh`: 6 non-interactive `curl` tests matching Tests 1–6 from `specs/022-cache-flush-management/quickstart.md` — full flush (HTTP 200 + `keys_deleted`), scoped flush (HTTP 200 + `model` echo), no-key rejection (HTTP 401), non-master rejection (HTTP 403), invalid model (HTTP 422 + `valid_models`), idempotency (HTTP 200 + `keys_deleted: 0`); skip gracefully if `SMOKE_API_KEY` unset
 - [x] T014 [P] Run `ruff check services/portal-backend/main.py` — zero warnings
 - [x] T015 [P] Run `mypy services/portal-backend/main.py --ignore-missing-imports` — zero type errors; all new function signatures have complete type annotations
-- [ ] T016 Validate acceptance criteria SC-001–SC-006 using the `curl` commands in `specs/022-cache-flush-management/quickstart.md` with a live stack (`make up-core && make up-portal && make seed-kong`)
-- [ ] T017 Run `make smoke` to confirm the full platform smoke test still passes after all changes
+- [x] T016 Validate acceptance criteria SC-001–SC-006 using the `curl` commands in `specs/022-cache-flush-management/quickstart.md` with a live stack (`make up-core && make up-portal && make seed-kong`)
+- [x] T017 Run `make smoke` to confirm the full platform smoke test still passes after all changes
+
+---
+
+## Phase 6: Post-ship bug fixes (discovered during feature 023 validation)
+
+- [x] T018 [BUG] `docker-compose.yml` portal-backend missing `REDIS_URL` environment variable — service defaulted to `redis://redis:6379` (non-existent hostname); fixed to `redis://redis-cache:6379`. Also added `redis-cache: condition: service_healthy` to `depends_on` to enforce startup ordering.
+- [x] T019 [BUG] `scripts/seed-kong.sh` `create_admin_services()` was missing the `DELETE /cache/flush` route registration — route existed in `kong.yml` declarative config but was never seeded via Admin API. Added `curl -sf -X PUT .../services/portal-backend/routes/cache-flush` with `paths[]=/cache/flush`, `methods[]=DELETE`, `strip_path=false`.
 
 ---
 

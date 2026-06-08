@@ -20,9 +20,70 @@
 | 014 | Request correlation | 014-request-correlation | ✓ Done |
 | 015 | Gateway body size limit | 015-gateway-body-size-limit | ✓ Done |
 | 016 | Gateway API versioning | 016-gateway-api-versioning | ✓ Done |
-| **017** | **Async batch inference** | **017-async-batch-inference** | **✅ Complete** |
+| 017 | Async batch inference | 017-async-batch-inference | ✓ Done |
+| 018 | Multimodal image support | 018-multimodal-image-support | ✓ Done |
+| 019 | Function calling | 019-function-calling | ✓ Done |
+| 020 | Structured JSON output | 020-structured-json-output | ✓ Done |
+| 021 | WebSocket streaming | 021-websocket-streaming | ✓ Done |
+| 022 | Cache flush management | 022-cache-flush-management | ✓ Done |
+| **023** | **Guardrails bypass flag** | **023-guardrails-bypass-flag** | **✓ Done** |
 
-## Active feature: 017 — Async Batch Inference
+## Active feature: 023 — Guardrails Bypass Flag
+
+**Spec**: `specs/023-guardrails-bypass-flag/spec.md`
+**Plan**: `specs/023-guardrails-bypass-flag/plan.md`
+**Tasks**: `specs/023-guardrails-bypass-flag/tasks.md`
+
+### What ships in this feature
+
+- Optional `guardrails` boolean field on `POST /v1/chat/completions` (default: `true`)
+- When `guardrails: false` + `stream: true`: `_streaming_passthrough()` uses `httpx client.stream()` — SSE chunks forwarded in real time, no buffering
+- When `guardrails: false` + `stream: false`: direct buffered passthrough, all validation gates skipped
+- When `guardrails: true` or absent: all existing validation behaviour unchanged (zero regression)
+- Flag stripped from request body before forwarding to LiteLLM
+- Audit log entry written on all paths including bypass
+- Bug fixes: portal-backend `REDIS_URL` env var + `seed-kong.sh` cache-flush route registration (022 post-ship)
+- Reference client `app/test.py`: httpx streaming via explicit `/v1/chat/completions` endpoint, python-dotenv key loading, SSE error chunk handling
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `services/guardrails/main.py` | Added `_streaming_passthrough()` helper; added guardrails bypass flag extraction and routing in `proxy()` |
+| `docker-compose.yml` | Added `REDIS_URL: redis://redis-cache:6379` and `redis-cache` dependency to portal-backend (bug fix 022) |
+| `scripts/seed-kong.sh` | Added `DELETE /cache/flush` route registration to `create_admin_services()` (bug fix 022) |
+| `app/test.py` | New — reference streaming client with httpx, python-dotenv, guardrails bypass, SSE error handling |
+
+---
+
+## Feature 022 — Cache Flush Management
+
+**Spec**: `specs/022-cache-flush-management/spec.md`
+**Plan**: `specs/022-cache-flush-management/plan.md`
+**Tasks**: `specs/022-cache-flush-management/tasks.md`
+
+### What ships in this feature
+
+- `DELETE /cache/flush` — flush all `llm_cache:*` Redis entries (master key only, 10 RPM rate-limit)
+- `DELETE /cache/flush?model={name}` — flush only entries for the named model; validates against LiteLLM catalogue; returns HTTP 422 with `valid_models` on unknown name
+- Implemented in `portal-backend` service using `redis.asyncio` SCAN+DEL (non-blocking, 100-key batches)
+- Returns `{"keys_deleted": <int>, "model": <str|null>}`
+- Audit log per flush: `cache_flush_all` or `cache_flush_model` event type
+- Two post-ship bug fixes (T018, T019): missing `REDIS_URL` env var and missing Kong route in seed script
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `services/portal-backend/main.py` | Added `/cache/flush` endpoint, `_redis_scan_del()`, `_validate_master_key()`, `_write_cache_audit()`, `CacheFlushResult` model |
+| `services/portal-backend/requirements.txt` | Added `redis[asyncio]==5.0.8` |
+| `services/kong/kong.yml` | Added `cache-flush` route + key-auth + rate-limiting plugins to portal-backend service |
+| `scripts/seed-kong.sh` | Added `DELETE /cache/flush` route registration (post-ship fix) |
+| `docker-compose.yml` | Added `REDIS_URL` env var and `redis-cache` dependency to portal-backend (post-ship fix) |
+
+---
+
+## Feature 017 — Async Batch Inference
 
 **Spec**: `specs/017-async-batch-inference/spec.md`
 **Plan**: `specs/017-async-batch-inference/plan.md`

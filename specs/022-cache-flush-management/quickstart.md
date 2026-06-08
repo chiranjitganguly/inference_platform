@@ -1,7 +1,9 @@
 # Quickstart: Cache Flush Management
 
 **Feature**: 022-cache-flush-management
-**Prerequisites**: `make up-core && make seed-kong` | `SMOKE_API_KEY=<master-key>`
+**Prerequisites**: `make up-core && make seed-kong` | `LITELLM_MASTER_KEY=sk-dev-1234`
+
+> **Auth note**: Kong's key-auth plugin expects the raw key value in the `Authorization` header — no `Bearer` prefix. portal-backend's `_validate_master_key` additionally requires the key to match `LITELLM_MASTER_KEY`. Use `Authorization: sk-dev-1234` (not `Authorization: Bearer sk-dev-1234`).
 
 ---
 
@@ -12,7 +14,7 @@ Populate the cache, flush it, verify cache miss.
 ```bash
 # Step 1 — populate cache with a repeatable request
 curl -s -X POST http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer $SMOKE_API_KEY" \
+  -H "Authorization: $LITELLM_MASTER_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Reply with the word CACHED"}]}' \
   | jq '.choices[0].message.content'
@@ -20,7 +22,7 @@ curl -s -X POST http://localhost:8080/v1/chat/completions \
 
 # Step 2 — flush the entire cache
 curl -s -X DELETE http://localhost:8080/cache/flush \
-  -H "Authorization: Bearer $SMOKE_API_KEY"
+  -H "Authorization: $LITELLM_MASTER_KEY"
 # Expected:
 # {"keys_deleted": <integer ≥ 0>}
 
@@ -28,7 +30,7 @@ curl -s -X DELETE http://localhost:8080/cache/flush \
 # Verify by checking response headers for X-Cache: MISS (if LiteLLM exposes cache hit header)
 # or verify latency is consistent with a live LLM call
 curl -s -X POST http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer $SMOKE_API_KEY" \
+  -H "Authorization: $LITELLM_MASTER_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Reply with the word CACHED"}]}'
 # Expected: HTTP 200 (fresh response — cache miss verified by non-zero latency)
@@ -43,18 +45,18 @@ Flush only gpt-4o entries; claude-haiku entries must survive.
 ```bash
 # Step 1 — populate cache for two models
 curl -s -X POST http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer $SMOKE_API_KEY" \
+  -H "Authorization: $LITELLM_MASTER_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Say ALPHA"}]}'
 
 curl -s -X POST http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer $SMOKE_API_KEY" \
+  -H "Authorization: $LITELLM_MASTER_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model":"claude-haiku","messages":[{"role":"user","content":"Say BETA"}]}'
 
 # Step 2 — flush only gpt-4o-mini
 curl -s -X DELETE "http://localhost:8080/cache/flush?model=gpt-4o-mini" \
-  -H "Authorization: Bearer $SMOKE_API_KEY"
+  -H "Authorization: $LITELLM_MASTER_KEY"
 # Expected:
 # {"keys_deleted": <integer ≥ 0>, "model": "gpt-4o-mini"}
 
@@ -69,7 +71,7 @@ curl -s -X DELETE "http://localhost:8080/cache/flush?model=gpt-4o-mini" \
 ```bash
 # Use a non-master consumer key (e.g., the smoke test consumer key if it is not master)
 curl -s -w "\nHTTP %{http_code}\n" -X DELETE http://localhost:8080/cache/flush \
-  -H "Authorization: Bearer sk-non-master-key-here"
+  -H "Authorization: sk-non-master-key-here"
 # Expected:
 # {"error":"forbidden","message":"Only the platform master key may flush the cache.","detail":{}}
 # HTTP 403
@@ -92,7 +94,7 @@ curl -s -w "\nHTTP %{http_code}\n" -X DELETE http://localhost:8080/cache/flush
 ```bash
 curl -s -w "\nHTTP %{http_code}\n" -X DELETE \
   "http://localhost:8080/cache/flush?model=nonexistent-model-xyz" \
-  -H "Authorization: Bearer $SMOKE_API_KEY"
+  -H "Authorization: $LITELLM_MASTER_KEY"
 # Expected:
 # {
 #   "error": "invalid_model",
@@ -111,11 +113,11 @@ curl -s -w "\nHTTP %{http_code}\n" -X DELETE \
 ```bash
 # Flush once to clear
 curl -s -X DELETE http://localhost:8080/cache/flush \
-  -H "Authorization: Bearer $SMOKE_API_KEY"
+  -H "Authorization: $LITELLM_MASTER_KEY"
 
 # Flush again immediately
 curl -s -X DELETE http://localhost:8080/cache/flush \
-  -H "Authorization: Bearer $SMOKE_API_KEY"
+  -H "Authorization: $LITELLM_MASTER_KEY"
 # Expected:
 # {"keys_deleted": 0}
 # HTTP 200  (not an error)
