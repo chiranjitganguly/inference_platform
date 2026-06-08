@@ -108,10 +108,13 @@ services:
     environment:
       LITELLM_BASE_URL:   http://litellm:4000
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      REDIS_URL:          redis://redis-cache:6379
     expose:
       - "8092"
     depends_on:
       litellm:
+        condition: service_healthy
+      redis-cache:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8092/health || exit 1"]

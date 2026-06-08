@@ -185,6 +185,68 @@ async def _stream_bytes(response: httpx.Response) -> AsyncIterator[bytes]:
         yield chunk
 
 
+async def _streaming_passthrough(
+    request: Request, body: bytes, headers: dict[str, str], path: str
+) -> StreamingResponse:
+    """
+    True chunk-by-chunk streaming passthrough used when guardrails=False.
+
+    Uses httpx client.stream() so the upstream connection stays open and SSE
+    chunks are forwarded to the caller as they arrive, without buffering the
+    full response. The httpx client and stream context are kept alive for the
+    lifetime of the FastAPI StreamingResponse via the _gen closure's finally block.
+
+    The response status code and headers are captured immediately after the HTTP
+    response headers arrive (before the body is read), so StreamingResponse is
+    constructed with the correct upstream status.
+
+    Args:
+        request: Incoming FastAPI request (method, query params).
+        body:    Request body bytes with the guardrails flag already stripped.
+        headers: Forwarding headers (host/content-length/transfer-encoding removed).
+        path:    URL path after the host, e.g. "v1/chat/completions".
+
+    Returns:
+        A StreamingResponse that forwards SSE chunks from LiteLLM in real time.
+    """
+    _client = httpx.AsyncClient(timeout=httpx.Timeout(120.0))
+    await _client.__aenter__()
+    try:
+        _stream_ctx = _client.stream(
+            method=request.method,
+            url=f"{LITELLM_BASE_URL}/{path}",
+            headers=headers,
+            content=body,
+            params=dict(request.query_params),
+        )
+        _upstream: httpx.Response = await _stream_ctx.__aenter__()
+    except Exception:
+        await _client.__aexit__(None, None, None)
+        raise
+
+    _write_audit(request, body, _upstream.status_code)
+
+    resp_headers = {
+        k: v for k, v in _upstream.headers.items()
+        if k.lower() not in ("content-length", "transfer-encoding")
+    }
+
+    async def _gen() -> AsyncIterator[bytes]:
+        try:
+            async for chunk in _upstream.aiter_bytes():
+                yield chunk
+        finally:
+            await _stream_ctx.__aexit__(None, None, None)
+            await _client.__aexit__(None, None, None)
+
+    return StreamingResponse(
+        _gen(),
+        status_code=_upstream.status_code,
+        headers=resp_headers,
+        media_type="text/event-stream",
+    )
+
+
 def _inject_no_log(body: bytes) -> bytes:
     """
     Inject metadata.no_log=True into an embeddings request body.
@@ -262,6 +324,49 @@ async def proxy(request: Request, path: str) -> Response:
     """
     body = await request.body()
 
+    # Extract and strip the guardrails flag before forwarding to LiteLLM.
+    # guardrails=False → skip all validation gates, passthrough directly.
+    # guardrails=True (default) → run all validation as normal.
+    _guardrails_on = True
+    if path == "v1/chat/completions" and request.method == "POST":
+        try:
+            _pjson: dict[str, Any] = json.loads(body)
+            if "guardrails" in _pjson:
+                _guardrails_on = bool(_pjson.pop("guardrails"))
+                body = json.dumps(_pjson).encode()
+        except Exception:
+            pass
+
+    headers = {
+        k: v
+        for k, v in request.headers.items()
+        if k.lower() not in ("host", "content-length", "transfer-encoding")
+    }
+
+    if not _guardrails_on:
+        try:
+            _is_streaming = bool(json.loads(body).get("stream", False))
+        except Exception:
+            _is_streaming = False
+
+        if _is_streaming:
+            return await _streaming_passthrough(request, body, headers, path)
+
+        async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as _c:
+            _up = await _c.request(
+                method=request.method,
+                url=f"{LITELLM_BASE_URL}/{path}",
+                headers=headers,
+                content=body,
+                params=dict(request.query_params),
+            )
+        _write_audit(request, body, _up.status_code)
+        return Response(
+            content=_up.content,
+            status_code=_up.status_code,
+            headers=dict(_up.headers),
+        )
+
     if path == "v1/embeddings" and request.method == "POST":
         body = _inject_no_log(body)
 
@@ -290,12 +395,6 @@ async def proxy(request: Request, path: str) -> Response:
             return so_gate
         body, _so_schema_name, _so_schema, _so_schema_hash = so_gate
         _had_so = bool(_so_schema_name)
-
-    headers = {
-        k: v
-        for k, v in request.headers.items()
-        if k.lower() not in ("host", "content-length", "transfer-encoding")
-    }
 
     so_retry_count = 0
 

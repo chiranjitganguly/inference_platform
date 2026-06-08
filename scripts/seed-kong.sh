@@ -143,9 +143,13 @@ create_admin_services() {
         -d "strip_path=false" \
         >/dev/null
     ok "Route: /v1/spend → portal-backend"
-    # TODO(future): add Kong-level key-auth once admin credential scoping is defined.
-    # LiteLLM master key auth uses "Bearer <key>"; Kong key-auth stores raw keys.
-    # hide_credentials=true would strip the header before LiteLLM sees it.
+
+    curl -sf -X PUT "${KONG_ADMIN}/services/portal-backend/routes/cache-flush" \
+        -d "paths[]=/cache/flush" \
+        -d "methods[]=DELETE" \
+        -d "strip_path=false" \
+        >/dev/null
+    ok "Route: DELETE /cache/flush → portal-backend"
     # For now, portal-backend handles its own auth via LITELLM_MASTER_KEY.
 
     # litellm-admin — virtual key management (LiteLLM enforces master key internally)
