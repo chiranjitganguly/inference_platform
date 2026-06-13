@@ -330,11 +330,42 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # ── Keycloak — OIDC identity provider (feature 024) ─────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.3
+    profiles: [auth, all]
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN:          ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB:                   postgres
+      KC_DB_URL:               jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME:          ${POSTGRES_USER}
+      KC_DB_PASSWORD:          ${POSTGRES_PASSWORD}
+      KC_HOSTNAME_STRICT:      "false"
+      KC_HTTP_PORT:            "8083"
+      KC_HEALTH_ENABLED:       "true"
+    volumes:
+      - ./services/keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8083/health/ready || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
 volumes:
   pg_data:
   phoenix_data:
   langfuse_data:
   batch_results:
+  keycloak_data:
 
 # ── Startup ordering for future services ────────────────────────────────────
 #

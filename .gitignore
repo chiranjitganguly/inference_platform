@@ -16,6 +16,13 @@ __pycache__/
 # Docker Compose local overrides
 docker-compose.override.yml
 
+# Node.js / Next.js (platform-ui)
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
 # Editor
 .vscode/
 .idea/

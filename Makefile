@@ -13,7 +13,7 @@ COMPOSE := docker compose --env-file .env
         restart logs \
         ps stats \
         smoke \
-        seed-kong seed-vault
+        seed-kong seed-kong-jwt seed-vault
 
 # ── Help ────────────────────────────────────────────────────────────────────
 
@@ -91,6 +91,9 @@ smoke: ## Run smoke tests against Kong :8080 (exit 0 = all pass)
 
 seed-kong: ## Seed Kong routes and services (idempotent)
 	bash scripts/seed-kong.sh
+
+seed-kong-jwt: ## Seed Kong JWT credentials from Keycloak realm public key (idempotent — re-run after key rotation)
+	bash scripts/seed-kong-jwt.sh
 
 seed-vault: ## Seed Vault secrets (idempotent)
 	bash scripts/seed-vault.sh
