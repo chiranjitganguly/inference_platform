@@ -18,7 +18,7 @@ decision. The invariants there are non-negotiable.
 Current phase and active feature are tracked in `docs/progress.md`.
 
 <!-- SPECKIT START -->
-**Active feature plan:** `specs/024-enterprise-sso-jwt/plan.md`
+**Active feature plan:** `specs/025-mfa-totp-enforcement/plan.md`
 <!-- SPECKIT END -->
 
 ---

@@ -1,3 +1,3 @@
 {
-  "feature_directory": "specs/024-enterprise-sso-jwt"
+  "feature_directory": "specs/025-mfa-totp-enforcement"
 }
