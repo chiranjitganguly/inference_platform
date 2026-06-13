@@ -4,14 +4,44 @@
 # Exits 0 if all probes pass; exits 1 if any probe fails.
 #
 # Usage:
-#   make smoke                          # uses defaults
-#   SMOKE_API_KEY=<key> make smoke      # authenticated probes
+#   make smoke                                                   # uses defaults
+#   INFERENCE_GATEWAY_CLIENT_SECRET=<secret> make smoke         # JWT auth via Keycloak
+#   SMOKE_API_KEY=<key> make smoke                              # legacy key-auth fallback
 set -uo pipefail
 
 KONG="${KONG_BASE_URL:-http://localhost:8080}"
 KONG_ADMIN="${KONG_ADMIN_URL:-http://localhost:8001}"
 SMOKE_API_KEY="${SMOKE_API_KEY:-}"
 TIMEOUT=5
+
+# ── Authentication (feature 024 — JWT) ──────────────────────────────────────
+# Obtains a JWT from Keycloak via client credentials if INFERENCE_GATEWAY_CLIENT_SECRET
+# is set. Falls back to raw SMOKE_API_KEY for environments without the auth profile.
+
+KEYCLOAK_URL="${KEYCLOAK_URL:-http://localhost:8083}"
+KEYCLOAK_REALM="${KEYCLOAK_REALM:-inference-platform}"
+INFERENCE_GATEWAY_CLIENT_SECRET="${INFERENCE_GATEWAY_CLIENT_SECRET:-}"
+
+JWT_TOKEN=""
+if [[ -n "$INFERENCE_GATEWAY_CLIENT_SECRET" ]]; then
+  JWT_TOKEN=$(curl -sf --max-time 5 \
+    -X POST "${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token" \
+    -d "grant_type=client_credentials" \
+    -d "client_id=inference-gateway" \
+    -d "client_secret=${INFERENCE_GATEWAY_CLIENT_SECRET}" \
+    | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null || echo "")
+fi
+
+# EFFECTIVE_AUTH: full "Authorization: ..." header value for curl -H
+# AUTH_HEADER_VALUE: just the value part for Python urllib header dicts
+if [[ -n "$JWT_TOKEN" ]]; then
+  EFFECTIVE_AUTH="Authorization: Bearer ${JWT_TOKEN}"
+elif [[ -n "$SMOKE_API_KEY" ]]; then
+  EFFECTIVE_AUTH="Authorization: ${SMOKE_API_KEY}"
+else
+  EFFECTIVE_AUTH=""
+fi
+AUTH_HEADER_VALUE="${EFFECTIVE_AUTH#Authorization: }"
 
 pass=0
 fail=0
@@ -27,8 +57,10 @@ probe() {
     # remaining args forwarded as extra curl flags (e.g. -H "Authorization: Bearer ...")
 
     local actual_status
+    # || true prevents set -e from aborting on connection refused; curl already
+    # writes "000" via -w '%{http_code}' when the connection cannot be made.
     actual_status=$(curl -s -o /dev/null -w '%{http_code}' \
-        --max-time "$TIMEOUT" "$@" "$url" 2>/dev/null || echo "000")
+        --max-time "$TIMEOUT" "$@" "$url" 2>/dev/null || true)
 
     if [[ "$actual_status" == "$expected_status" ]]; then
         ok "${label} (HTTP ${actual_status})"
@@ -48,27 +80,27 @@ probe "Kong admin reachable"    "${KONG_ADMIN}/status"  200
 probe "LiteLLM /v1/models — unauthenticated" "${KONG}/v1/models" 401
 
 # Authenticated /v1/models returns 200 with a valid key
-if [[ -n "$SMOKE_API_KEY" ]]; then
+if [[ -n "$EFFECTIVE_AUTH" ]]; then
     probe "LiteLLM /v1/models via Kong — authenticated" \
         "${KONG}/v1/models" 200 \
-        -H "Authorization: ${SMOKE_API_KEY}"
+        -H "${EFFECTIVE_AUTH}"
 else
-    printf '[SKIP]    LiteLLM /v1/models — authenticated (SMOKE_API_KEY not set)\n'
+    printf '[SKIP]    LiteLLM /v1/models — authenticated (no auth credentials)\n'
 fi
 
 # Health endpoint — no auth required (US3: unauthenticated liveness probe)
 probe "GET /health via Kong — no auth" "${KONG}/health" 200
 
 # POST /v1/chat/completions — authenticated request returns 200
-if [[ -n "$SMOKE_API_KEY" ]]; then
+if [[ -n "$EFFECTIVE_AUTH" ]]; then
     probe "POST /v1/chat/completions — authenticated" \
         "${KONG}/v1/chat/completions" 200 \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"smoke test"}]}'
 else
-    printf '[SKIP]    POST /v1/chat/completions — authenticated (SMOKE_API_KEY not set)\n'
+    printf '[SKIP]    POST /v1/chat/completions — authenticated (no auth credentials)\n'
 fi
 
 # POST /v1/chat/completions — unauthenticated must return 401
@@ -80,13 +112,13 @@ probe "POST /v1/chat/completions — unauthenticated" \
 
 # ── Streaming probes ──────────────────────────────────────────────────────────
 
-if [[ -n "$SMOKE_API_KEY" ]]; then
+if [[ -n "$EFFECTIVE_AUTH" ]]; then
     # Streaming: Content-Type and [DONE] sentinel
     stream_body='{"model":"gpt-4o-mini","messages":[{"role":"user","content":"say hi"}],"stream":true}'
     stream_output=$(curl -s --no-buffer -N \
         --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d "$stream_body" \
         "${KONG}/v1/chat/completions" 2>/dev/null)
@@ -95,7 +127,7 @@ if [[ -n "$SMOKE_API_KEY" ]]; then
         -D - \
         --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d "$stream_body" \
         "${KONG}/v1/chat/completions" 2>/dev/null | grep -i "^content-type:" | tr -d '\r')
@@ -124,7 +156,7 @@ if [[ -n "$SMOKE_API_KEY" ]]; then
         -w '%{time_starttransfer}' \
         --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d "$stream_body" \
         "${KONG}/v1/chat/completions" 2>/dev/null)
@@ -149,12 +181,12 @@ if [[ -n "$SMOKE_API_KEY" ]]; then
         fail "POST /v1/chat/completions streaming — unauthenticated expected 401, got ${stream_unauth_status}"
     fi
 else
-    printf '[SKIP]    POST /v1/chat/completions streaming probes (SMOKE_API_KEY not set)\n'
+    printf '[SKIP]    POST /v1/chat/completions streaming probes (no auth credentials)\n'
 fi
 
 # ── Caching probes ────────────────────────────────────────────────────────────
 
-if [[ -n "$SMOKE_API_KEY" ]]; then
+if [[ -n "$EFFECTIVE_AUTH" ]]; then
     cache_body='{"model":"gpt-4o-mini","messages":[{"role":"user","content":"cache smoke test probe"}],"temperature":0.0}'
 
     # First request — must be a cache miss (x-litellm-cache-hit: False or absent)
@@ -163,7 +195,7 @@ if [[ -n "$SMOKE_API_KEY" ]]; then
         -o /dev/null \
         --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d "$cache_body" \
         "${KONG}/v1/chat/completions" 2>/dev/null | tr -d '\r')
@@ -181,7 +213,7 @@ if [[ -n "$SMOKE_API_KEY" ]]; then
         -o /dev/null \
         --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d "$cache_body" \
         "${KONG}/v1/chat/completions" 2>/dev/null | tr -d '\r')
@@ -199,7 +231,7 @@ if [[ -n "$SMOKE_API_KEY" ]]; then
         -o /dev/null \
         --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"cache smoke test probe"}],"temperature":0.0,"stream":true}' \
         "${KONG}/v1/chat/completions" 2>/dev/null | tr -d '\r')
@@ -211,7 +243,7 @@ if [[ -n "$SMOKE_API_KEY" ]]; then
         fail "POST /v1/chat/completions streaming — unexpected cache hit on streaming request"
     fi
 else
-    printf '[SKIP]    POST /v1/chat/completions cache probes (SMOKE_API_KEY not set)\n'
+    printf '[SKIP]    POST /v1/chat/completions cache probes (no auth credentials)\n'
 fi
 
 # ── Fallback routing probes ───────────────────────────────────────────────────
@@ -224,11 +256,11 @@ fi
 #   3. Re-run make smoke — the affected model's request will be served by its fallback
 #   4. Restore the key and restart: make restart svc=litellm
 
-if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+if [[ -n "${EFFECTIVE_AUTH:-}" ]]; then
     # Probe 1 — model field is present and non-empty in every successful response (FR-004)
     fallback_resp=$(curl -s --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"fallback routing smoke probe"}]}' \
         "${KONG}/v1/chat/completions" 2>/dev/null)
@@ -243,7 +275,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # Probe 2 — valid request returns HTTP 200 (baseline; fallback transparent to caller)
     fallback_status=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"fallback smoke probe 2"}]}' \
         "${KONG}/v1/chat/completions" 2>/dev/null)
@@ -258,7 +290,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # (Only verifiable manually with all provider keys invalid — logged here for reference)
     printf '[INFO]    POST /v1/chat/completions 503 schema probe: run with all keys invalid to verify all_fallbacks_exhausted body\n'
 else
-    printf '[SKIP]    POST /v1/chat/completions fallback probes (SMOKE_API_KEY not set)\n'
+    printf '[SKIP]    POST /v1/chat/completions fallback probes (no auth credentials)\n'
 fi
 
 # ── Key management probes (T008) ─────────────────────────────────────────────
@@ -323,11 +355,11 @@ fi
 
 # ── Embeddings probes (feature 011) ──────────────────────────────────────────
 
-if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+if [[ -n "${EFFECTIVE_AUTH:-}" ]]; then
     # US1-a: text-embedding-3-small → 1536-element float array
     embed_small_dims=$(curl -s --max-time 15 \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"text-embedding-3-small","input":"smoke test embedding"}' \
         "${KONG}/v1/embeddings" 2>/dev/null \
@@ -341,7 +373,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # US3: token usage fields present and non-zero in every successful embedding response
     embed_tokens=$(curl -s --max-time 15 \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"text-embedding-3-small","input":"token usage verification"}' \
         "${KONG}/v1/embeddings" 2>/dev/null \
@@ -361,7 +393,7 @@ print('ok' if pt > 0 and tt > 0 else f'fail pt={pt} tt={tt}')
     # US1-b: text-embedding-3-large → 3072-element float array
     embed_large_dims=$(curl -s --max-time 15 \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"text-embedding-3-large","input":"smoke test embedding"}' \
         "${KONG}/v1/embeddings" 2>/dev/null \
@@ -375,7 +407,7 @@ print('ok' if pt > 0 and tt > 0 else f'fail pt={pt} tt={tt}')
     # US2-a: chat model on /v1/embeddings → HTTP 400 (model type rejection)
     embed_chat_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o","input":"reject me"}' \
         "${KONG}/v1/embeddings" 2>/dev/null)
@@ -388,7 +420,7 @@ print('ok' if pt > 0 and tt > 0 else f'fail pt={pt} tt={tt}')
     # US2-b: Anthropic chat model on /v1/embeddings → HTTP 400
     embed_anthropic_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"claude-sonnet","input":"reject me"}' \
         "${KONG}/v1/embeddings" 2>/dev/null)
@@ -403,7 +435,7 @@ print('ok' if pt > 0 and tt > 0 else f'fail pt={pt} tt={tt}')
     embed_cache_hit_1=$(curl -s --max-time 15 \
         -D - -o /dev/null \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d "$embed_cache_body" \
         "${KONG}/v1/embeddings" 2>/dev/null | tr -d '\r' \
@@ -411,7 +443,7 @@ print('ok' if pt > 0 and tt > 0 else f'fail pt={pt} tt={tt}')
     embed_cache_hit_2=$(curl -s --max-time 15 \
         -D - -o /dev/null \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d "$embed_cache_body" \
         "${KONG}/v1/embeddings" 2>/dev/null | tr -d '\r' \
@@ -425,7 +457,7 @@ print('ok' if pt > 0 and tt > 0 else f'fail pt={pt} tt={tt}')
     # US1-c: batch of 3 inputs → 3 objects, correct index ordering
     embed_batch=$(curl -s --max-time 15 \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"text-embedding-3-small","input":["first","second","third"]}' \
         "${KONG}/v1/embeddings" 2>/dev/null \
@@ -442,15 +474,15 @@ print(f'{count},{first_index}')
         fail "POST /v1/embeddings batch — expected count=3,index=0, got: ${embed_batch:-error}"
     fi
 else
-    printf '[SKIP]    POST /v1/embeddings probes (SMOKE_API_KEY not set)\n'
+    printf '[SKIP]    POST /v1/embeddings probes (no auth credentials)\n'
 fi
 
 # ── Langfuse metadata probe (T018) ───────────────────────────────────────────
 
-if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+if [[ -n "${EFFECTIVE_AUTH:-}" ]]; then
     langfuse_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time "$TIMEOUT" \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{
           "model": "gpt-4o-mini",
@@ -467,7 +499,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
         fail "POST /v1/chat/completions with Langfuse metadata — expected 200, got ${langfuse_status}"
     fi
 else
-    printf '[SKIP]    Langfuse metadata probe (SMOKE_API_KEY not set)\n'
+    printf '[SKIP]    Langfuse metadata probe (no auth credentials)\n'
 fi
 
 # ── Auth rejection probes (US2: 401 on inference endpoints without key) ───────
@@ -480,8 +512,8 @@ probe "POST /v1/embeddings — unauthenticated (no key)" "${KONG}/v1/embeddings"
 
 litellm_status=$(curl -s -o /dev/null -w '%{http_code}' \
     --connect-timeout 2 --max-time 2 \
-    "http://localhost:4000/v1/models" 2>/dev/null || echo "000")
-if [[ "$litellm_status" == "000" ]]; then
+    "http://localhost:4000/v1/models" 2>/dev/null || true)
+if [[ "$litellm_status" == "000" || -z "$litellm_status" ]]; then
     ok "LiteLLM :4000 — not reachable from host (constitution §2.1)"
 else
     fail "LiteLLM :4000 — externally reachable (HTTP ${litellm_status}) — constitution §2.1 violation"
@@ -491,14 +523,14 @@ fi
 
 # T009: probe_rate_limit_burst — send 12 rapid requests, expect first 10 → 200,
 # requests 11-12 → 429 (per-second limit of 10, FR-002, FR-003).
-if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+if [[ -n "${EFFECTIVE_AUTH:-}" ]]; then
     burst_pass=0
     burst_fail=0
     for i in $(seq 1 12); do
         status=$(curl -s -o /dev/null -w '%{http_code}' \
             --max-time "$TIMEOUT" \
-            -H "Authorization: ${SMOKE_API_KEY}" \
-            "${KONG}/v1/models" 2>/dev/null || echo "000")
+            -H "${EFFECTIVE_AUTH}" \
+            "${KONG}/v1/models" 2>/dev/null || true)
         printf '[INFO]    Rate-limit burst request %2d → HTTP %s\n' "$i" "$status"
         if [[ $i -le 10 && "$status" == "200" ]]; then
             burst_pass=$(( burst_pass + 1 ))
@@ -514,19 +546,19 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
         fail "Rate-limit burst — ${burst_fail} requests had unexpected status codes"
     fi
 else
-    printf '[SKIP]    Rate-limit burst probe (SMOKE_API_KEY not set)\n'
+    printf '[SKIP]    Rate-limit burst probe (no auth credentials)\n'
 fi
 
 # T010: probe_retry_after_header — confirm Retry-After header present on 429 (FR-004).
-if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+if [[ -n "${EFFECTIVE_AUTH:-}" ]]; then
     # exhaust per-second limit then capture the throttled response
     for _ in $(seq 1 10); do
         curl -s -o /dev/null --max-time "$TIMEOUT" \
-            -H "Authorization: ${SMOKE_API_KEY}" \
+            -H "${EFFECTIVE_AUTH}" \
             "${KONG}/v1/models" 2>/dev/null
     done
     throttle_headers=$(curl -si --max-time "$TIMEOUT" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         "${KONG}/v1/models" 2>/dev/null | tr -d '\r')
     if echo "$throttle_headers" | grep -qi "^retry-after:"; then
         retry_val=$(echo "$throttle_headers" | grep -i "^retry-after:" | awk '{print $2}')
@@ -535,17 +567,17 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
         fail "Rate-limit Retry-After header missing on 429 response — FR-004 violation"
     fi
 else
-    printf '[SKIP]    Rate-limit Retry-After header probe (SMOKE_API_KEY not set)\n'
+    printf '[SKIP]    Rate-limit Retry-After header probe (no auth credentials)\n'
 fi
 
 # T012: probe_consumer_isolation — Consumer A throttled, Consumer B still gets 200 (US2, SC-002).
 CONSUMER_B_KEY="${CONSUMER_B_API_KEY:-consumer-b-test-key}"
-if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+if [[ -n "${EFFECTIVE_AUTH:-}" ]]; then
     # hammer Consumer A past per-second limit in background
     (
         for _ in $(seq 1 20); do
             curl -s -o /dev/null --max-time "$TIMEOUT" \
-                -H "Authorization: ${SMOKE_API_KEY}" \
+                -H "${EFFECTIVE_AUTH}" \
                 "${KONG}/v1/models" 2>/dev/null
         done
     ) &
@@ -554,7 +586,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     isolation_status=$(curl -s -o /dev/null -w '%{http_code}' \
         --max-time "$TIMEOUT" \
         -H "Authorization: ${CONSUMER_B_KEY}" \
-        "${KONG}/v1/models" 2>/dev/null || echo "000")
+        "${KONG}/v1/models" 2>/dev/null || true)
     wait "$bg_pid" 2>/dev/null || true
     if [[ "$isolation_status" == "200" ]]; then
         ok "Rate-limit consumer isolation — Consumer B gets 200 while Consumer A is throttled (SC-002)"
@@ -562,12 +594,12 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
         fail "Rate-limit consumer isolation — Consumer B got HTTP ${isolation_status}, expected 200"
     fi
 else
-    printf '[SKIP]    Rate-limit consumer isolation probe (SMOKE_API_KEY not set)\n'
+    printf '[SKIP]    Rate-limit consumer isolation probe (no auth credentials)\n'
 fi
 
 # T014: probe_custom_consumer_limit — consumer-scoped override enforced (US3, SC-004).
 consumer_b_plugin_id=""
-if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+if [[ -n "${EFFECTIVE_AUTH:-}" ]]; then
     # apply a tighter per-second limit (2/s) to consumer-b via Admin API
     create_resp=$(curl -sf -X POST "${KONG_ADMIN}/consumers/consumer-b/plugins" \
         -d "name=rate-limiting" \
@@ -591,7 +623,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
             st=$(curl -s -o /dev/null -w '%{http_code}' \
                 --max-time "$TIMEOUT" \
                 -H "Authorization: ${CONSUMER_B_KEY}" \
-                "${KONG}/v1/models" 2>/dev/null || echo "000")
+                "${KONG}/v1/models" 2>/dev/null || true)
             if [[ $i -le 2 && "$st" != "200" ]]; then custom_fail=$(( custom_fail + 1 )); fi
             if [[ $i -eq 3 && "$st" != "429" ]]; then custom_fail=$(( custom_fail + 1 )); fi
         done
@@ -608,13 +640,13 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
         fail "Rate-limit per-consumer override — could not create consumer-scoped plugin for consumer-b"
     fi
 else
-    printf '[SKIP]    Rate-limit per-consumer override probe (SMOKE_API_KEY not set)\n'
+    printf '[SKIP]    Rate-limit per-consumer override probe (no auth credentials)\n'
 fi
 
 # T015: probe_quota_headers — all nine RateLimit-* headers present on 200 (US4, FR-006).
-if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+if [[ -n "${EFFECTIVE_AUTH:-}" ]]; then
     quota_headers=$(curl -si --max-time "$TIMEOUT" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         "${KONG}/v1/models" 2>/dev/null | tr -d '\r')
     quota_missing=()
     for hdr in \
@@ -637,7 +669,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
         fail "Rate-limit quota headers — missing headers: ${quota_missing[*]}"
     fi
 else
-    printf '[SKIP]    Rate-limit quota headers probe (SMOKE_API_KEY not set)\n'
+    printf '[SKIP]    Rate-limit quota headers probe (no auth credentials)\n'
 fi
 
 # ── Request correlation probes (feature 014) ─────────────────────────────────
@@ -732,7 +764,7 @@ printf '[INFO]    Phoenix span lookup: filter by gateway.request_id = %s at http
 
 REQUEST_SIZE_LIMIT_MB="${REQUEST_SIZE_LIMIT_MB:-10}"
 
-if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+if [[ -n "${EFFECTIVE_AUTH:-}" ]]; then
 
     # [015] US1 — oversized payload returns 413 (SC-001)
     # Generate an 11 MB body inline; Kong must reject before forwarding to LiteLLM.
@@ -742,7 +774,7 @@ body = json.dumps({'model':'gpt-4o','messages':[{'role':'user','content':'x'*115
 req = urllib.request.Request(
     '${KONG}/v1/chat/completions',
     data=body,
-    headers={'Authorization':'${SMOKE_API_KEY}','Content-Type':'application/json'},
+    headers={'Authorization':'${AUTH_HEADER_VALUE}','Content-Type':'application/json'},
     method='POST'
 )
 try:
@@ -752,7 +784,7 @@ except urllib.error.HTTPError as e:
     print(e.code)
 except Exception:
     print('000')
-" 2>/dev/null || echo "000")
+" 2>/dev/null || true)
     if [[ "$oversize_status" == "413" ]]; then
         ok "[015] POST /v1/chat/completions — oversized payload (11 MB) rejected with HTTP 413 (SC-001)"
     else
@@ -767,7 +799,7 @@ body = json.dumps({'model':'gpt-4o','messages':[{'role':'user','content':'x'*104
 req = urllib.request.Request(
     '${KONG}/v1/chat/completions',
     data=body,
-    headers={'Authorization':'${SMOKE_API_KEY}','Content-Type':'application/json'},
+    headers={'Authorization':'${AUTH_HEADER_VALUE}','Content-Type':'application/json'},
     method='POST'
 )
 try:
@@ -777,7 +809,7 @@ except urllib.error.HTTPError as e:
     print(e.code)
 except Exception:
     print('000')
-" 2>/dev/null || echo "000")
+" 2>/dev/null || true)
     if [[ "$boundary_status" != "413" && "$boundary_status" != "000" ]]; then
         ok "[015] POST /v1/chat/completions — boundary payload (10 MB) passed through Kong (HTTP ${boundary_status}) (SC-002)"
     else
@@ -789,7 +821,7 @@ except Exception:
     probe "[015] POST /v1/chat/completions — normal request unaffected by size limit" \
         "${KONG}/v1/chat/completions" "200" \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o","messages":[{"role":"user","content":"smoke probe — size limit regression check"}]}'
 
@@ -800,7 +832,7 @@ body = json.dumps({'model':'text-embedding-3-small','input':'x'*11534336}).encod
 req = urllib.request.Request(
     '${KONG}/v1/embeddings',
     data=body,
-    headers={'Authorization':'${SMOKE_API_KEY}','Content-Type':'application/json'},
+    headers={'Authorization':'${AUTH_HEADER_VALUE}','Content-Type':'application/json'},
     method='POST'
 )
 try:
@@ -810,7 +842,7 @@ except urllib.error.HTTPError as e:
     print(e.code)
 except Exception:
     print('000')
-" 2>/dev/null || echo "000")
+" 2>/dev/null || true)
     if [[ "$embed_oversize_status" == "413" ]]; then
         ok "[015] POST /v1/embeddings — oversized payload (11 MB) rejected with HTTP 413 (SC-004)"
     else
@@ -824,7 +856,7 @@ body = json.dumps({'model':'gpt-4o','messages':[{'role':'user','content':'x'*115
 req = urllib.request.Request(
     '${KONG}/v1/chat/completions',
     data=body,
-    headers={'Authorization':'${SMOKE_API_KEY}','Content-Type':'application/json'},
+    headers={'Authorization':'${AUTH_HEADER_VALUE}','Content-Type':'application/json'},
     method='POST'
 )
 try:
@@ -846,7 +878,7 @@ except Exception:
     fi
 
 else
-    printf '[INFO]    [015] Skipping request-size-limit probes — SMOKE_API_KEY not set\n'
+    printf '[INFO]    [015] Skipping request-size-limit probes — no auth credentials\n'
 fi
 
 printf '[INFO]    [015] Loki audit query: {service="kong"} | json | status="413"\n'
@@ -857,11 +889,11 @@ printf '[INFO]    [015] Loki audit query: {service="kong"} | json | status="413"
 probe "[017] GET http://localhost:8091/health — batch-api direct health" \
     "http://localhost:8091/health" 200
 
-if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+if [[ -n "${EFFECTIVE_AUTH:-}" ]]; then
 
     # [017] US1 — submit a single-item batch, expect 202 with job_id (SC-001)
     batch_resp=$(curl -sf -X POST "${KONG}/v1/batch/jobs" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o-mini","items":[{"index":0,"messages":[{"role":"user","content":"ping"}]}]}' \
         2>/dev/null || echo "")
@@ -880,7 +912,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # [017] US2 — poll status of the submitted job (SC-001)
     if [[ -n "${batch_job_id:-}" ]]; then
         status_resp=$(curl -sf "${KONG}/v1/batch/jobs/${batch_job_id}" \
-            -H "Authorization: ${SMOKE_API_KEY}" 2>/dev/null || echo "")
+            -H "${EFFECTIVE_AUTH}" 2>/dev/null || echo "")
         status_field=$(echo "$status_resp" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',''))" 2>/dev/null || echo "")
         if [[ "$status_field" == "queued" || "$status_field" == "running" || "$status_field" == "completed" ]]; then
             ok "[017] GET /v1/batch/jobs/{id} — 200 with valid status field: ${status_field}"
@@ -892,7 +924,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # [017] US2 — unknown job_id returns 404 (FR-003)
     unknown_code=$(curl -s -o /dev/null -w "%{http_code}" \
         "${KONG}/v1/batch/jobs/00000000-0000-0000-0000-000000000000" \
-        -H "Authorization: ${SMOKE_API_KEY}" 2>/dev/null || echo "000")
+        -H "${EFFECTIVE_AUTH}" 2>/dev/null || true)
     if [[ "$unknown_code" == "404" ]]; then
         ok "[017] GET /v1/batch/jobs/{unknown} — 404 Not Found"
     else
@@ -902,9 +934,9 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # [017] US1 — empty items array returns 400 (FR-012)
     empty_code=$(curl -s -o /dev/null -w "%{http_code}" \
         -X POST "${KONG}/v1/batch/jobs" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
-        -d '{"model":"gpt-4o","items":[]}' 2>/dev/null || echo "000")
+        -d '{"model":"gpt-4o","items":[]}' 2>/dev/null || true)
     if [[ "$empty_code" == "422" || "$empty_code" == "400" ]]; then
         ok "[017] POST /v1/batch/jobs — empty items array rejected with ${empty_code}"
     else
@@ -916,7 +948,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
         -X POST "${KONG}/v1/batch/jobs" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o","items":[{"index":0,"messages":[{"role":"user","content":"x"}]}]}' \
-        2>/dev/null || echo "000")
+        2>/dev/null || true)
     if [[ "$unauth_code" == "401" ]]; then
         ok "[017] POST /v1/batch/jobs — unauthenticated request returns 401"
     else
@@ -924,19 +956,19 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     fi
 
 else
-    printf '[INFO]    [017] Skipping batch API probes — SMOKE_API_KEY not set\n'
+    printf '[INFO]    [017] Skipping batch API probes — no auth credentials\n'
 fi
 
 printf '[INFO]    [017] Results endpoint: GET /v1/batch/jobs/{id}/results (after job completes)\n'
 
 # ── [018] Multimodal Image Support ───────────────────────────────────────────
 
-if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+if [[ -n "${EFFECTIVE_AUTH:-}" ]]; then
 
     # [018] AC-1 — URL image request returns HTTP 200 with non-empty content (US1)
     vision_url_resp=$(curl -s --max-time 30 \
         -X POST "${KONG}/v1/chat/completions" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{
           "model": "gpt-4o",
@@ -952,7 +984,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
         }' 2>/dev/null)
     vision_url_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
         -X POST "${KONG}/v1/chat/completions" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{
           "model": "gpt-4o",
@@ -977,7 +1009,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # [018] AC-3 — non-vision model with image rejected with 400 vision_model_required (US3)
     reject_resp=$(curl -s -w '\n%{http_code}' --max-time 10 \
         -X POST "${KONG}/v1/chat/completions" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{
           "model": "command-r-plus",
@@ -1002,7 +1034,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # [018] AC-4 — stream:true with image rejected with 400 vision_streaming_not_supported
     stream_vision_resp=$(curl -s -w '\n%{http_code}' --max-time 10 \
         -X POST "${KONG}/v1/chat/completions" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{
           "model": "gpt-4o",
@@ -1029,12 +1061,12 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     probe "[018] POST /v1/chat/completions — text-only regression (AC-6)" \
         "${KONG}/v1/chat/completions" 200 \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"smoke regression check"}]}'
 
 else
-    printf '[INFO]    [018] Skipping multimodal probes — SMOKE_API_KEY not set\n'
+    printf '[INFO]    [018] Skipping multimodal probes — no auth credentials\n'
 fi
 
 printf '[INFO]    [018] Base64 image test: see specs/018-multimodal-image-support/quickstart.md AC-2\n'
@@ -1042,12 +1074,12 @@ printf '[INFO]    [018] Audit log check: make logs svc=guardrails | grep image_p
 
 # ── [019] Function Calling Support ───────────────────────────────────────────
 
-if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+if [[ -n "${EFFECTIVE_AUTH:-}" ]]; then
 
     # [019] AC-1 — auto tool selection: weather message → tool_calls with valid JSON args
     fc_resp=$(curl -s --max-time 30 \
         -X POST "${KONG}/v1/chat/completions" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{
           "model": "gpt-4o",
@@ -1067,7 +1099,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # [019] AC-4 — non-FC model + tools → 400 function_calling_model_required
     fc_reject_resp=$(curl -s -w '\n%{http_code}' --max-time 10 \
         -X POST "${KONG}/v1/chat/completions" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{
           "model": "claude-haiku",
@@ -1088,24 +1120,24 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     probe "[019] POST /v1/chat/completions — text-only regression after FC feature (AC-7)" \
         "${KONG}/v1/chat/completions" 200 \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"smoke regression check"}]}'
 
 else
-    printf '[INFO]    [019] Skipping function-calling probes — SMOKE_API_KEY not set\n'
+    printf '[INFO]    [019] Skipping function-calling probes — no auth credentials\n'
 fi
 
 printf '[INFO]    [019] Audit log check: make logs svc=guardrails | grep tool_count\n'
 
 # ── [020] Structured JSON Output ─────────────────────────────────────────────
 
-if [[ -n "${SMOKE_API_KEY:-}" ]]; then
+if [[ -n "${EFFECTIVE_AUTH:-}" ]]; then
 
     # [020] SC-001 — valid json_schema request returns HTTP 200 with JSON content (US1)
     so_resp=$(curl -s --max-time 30 \
         -X POST "${KONG}/v1/chat/completions" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{
           "model": "gpt-4o-mini",
@@ -1127,7 +1159,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
         }' 2>/dev/null)
     so_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
         -X POST "${KONG}/v1/chat/completions" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{
           "model": "gpt-4o-mini",
@@ -1158,7 +1190,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # [020] SC-002 — stream:true + json_schema → 400 structured_output_streaming_not_supported (US1)
     so_stream_resp=$(curl -s -w '\n%{http_code}' --max-time 10 \
         -X POST "${KONG}/v1/chat/completions" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{
           "model": "gpt-4o-mini",
@@ -1184,7 +1216,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # [020] SC-002 — invalid schema rejected with 422 invalid_json_schema (US2)
     so_invalid_resp=$(curl -s -w '\n%{http_code}' --max-time 10 \
         -X POST "${KONG}/v1/chat/completions" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{
           "model": "gpt-4o-mini",
@@ -1209,7 +1241,7 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     # [020] SC-003 — missing response_format.name → 400 invalid_structured_output_request (US2)
     so_noname_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
         -X POST "${KONG}/v1/chat/completions" \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{
           "model": "gpt-4o-mini",
@@ -1229,16 +1261,88 @@ if [[ -n "${SMOKE_API_KEY:-}" ]]; then
     probe "[020] POST /v1/chat/completions — text-only regression unaffected by SO gate (SC-004)" \
         "${KONG}/v1/chat/completions" 200 \
         -X POST \
-        -H "Authorization: ${SMOKE_API_KEY}" \
+        -H "${EFFECTIVE_AUTH}" \
         -H "Content-Type: application/json" \
         -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"smoke regression check 020"}]}'
 
 else
-    printf '[INFO]    [020] Skipping structured output probes — SMOKE_API_KEY not set\n'
+    printf '[INFO]    [020] Skipping structured output probes — no auth credentials\n'
 fi
 
 printf '[INFO]    [020] Audit log check: make logs svc=guardrails | grep schema_name\n'
 printf '[INFO]    [020] Phoenix span check: filter by metadata.schema_name at http://localhost:6006\n'
+
+# ── JWT validation probes (feature 024) ──────────────────────────────────────
+
+# [024] Malformed JWT → 401 with platform error schema (T010/T011)
+jwt_malformed_body=$(curl -s --max-time "$TIMEOUT" \
+    -H "Authorization: Bearer not.a.valid.jwt" \
+    "${KONG}/v1/models" 2>/dev/null)
+jwt_malformed_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time "$TIMEOUT" \
+    -H "Authorization: Bearer not.a.valid.jwt" \
+    "${KONG}/v1/models" 2>/dev/null)
+if [[ "$jwt_malformed_status" == "401" ]]; then
+    ok "[024] /v1/models — malformed JWT returns 401"
+else
+    fail "[024] /v1/models — malformed JWT expected 401, got ${jwt_malformed_status}"
+fi
+jwt_error_field=$(printf '%s' "$jwt_malformed_body" \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error',''))" 2>/dev/null || echo "")
+if [[ "$jwt_error_field" == "Unauthorized" ]]; then
+    ok "[024] /v1/models — 401 body has error=Unauthorized (platform error schema, T010)"
+else
+    fail "[024] /v1/models — 401 body missing error=Unauthorized field: ${jwt_malformed_body}"
+fi
+
+# [024] JWT with unknown iss (no matching consumer) → 401 (T011 tampered token)
+jwt_unknown_iss=$(curl -s -o /dev/null -w '%{http_code}' --max-time "$TIMEOUT" \
+    -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZSIsImlzcyI6Imh0dHA6Ly91bmtub3duLWlkcC9yZWFsbXMvdGVzdCIsImV4cCI6OTk5OTk5OTk5OX0.invalidsig" \
+    "${KONG}/v1/models" 2>/dev/null)
+if [[ "$jwt_unknown_iss" == "401" ]]; then
+    ok "[024] /v1/models — JWT with unknown iss returns 401 (T011)"
+else
+    fail "[024] /v1/models — JWT with unknown iss expected 401, got ${jwt_unknown_iss}"
+fi
+
+# [024] Phoenix UI route — unauthenticated returns 401 (T018, FR-015)
+probe "[024] GET /phoenix — unauthenticated returns 401 (T018)" \
+    "${KONG}/phoenix" 401
+
+# [024] Langfuse UI route — unauthenticated returns 401 (T018, FR-016)
+probe "[024] GET /langfuse — unauthenticated returns 401 (T018)" \
+    "${KONG}/langfuse" 401
+
+# [024] Valid JWT accepted, claim-forwarding pipeline active (T012/T013)
+if [[ -n "$JWT_TOKEN" ]]; then
+    jwt_valid_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time "$TIMEOUT" \
+        -H "${EFFECTIVE_AUTH}" \
+        "${KONG}/v1/models" 2>/dev/null)
+    if [[ "$jwt_valid_status" == "200" ]]; then
+        ok "[024] /v1/models — valid JWT accepted (200); claim-forwarding pipeline active (T012)"
+    else
+        fail "[024] /v1/models — valid JWT expected 200, got ${jwt_valid_status}"
+    fi
+else
+    printf '[SKIP]    [024] JWT claim-forwarding probe (INFERENCE_GATEWAY_CLIENT_SECRET not set)\n'
+fi
+
+# [024] Keycloak health check (T025)
+if curl -sf --max-time 3 "${KEYCLOAK_URL}/health/ready" >/dev/null 2>&1; then
+    ok "[024] Keycloak /health/ready — auth profile running"
+else
+    printf '[INFO]    [024] Keycloak not reachable at %s — run: make up-auth\n' "${KEYCLOAK_URL}"
+fi
+
+# [024] Key rotation idempotency — seed-kong-jwt.sh re-run succeeds (T020)
+if curl -sf --max-time 3 "${KEYCLOAK_URL}/health/ready" >/dev/null 2>&1; then
+    if bash scripts/seed-kong-jwt.sh >/dev/null 2>&1; then
+        ok "[024] seed-kong-jwt.sh — idempotent re-run succeeded (key rotation SLO)"
+    else
+        fail "[024] seed-kong-jwt.sh — idempotent re-run failed"
+    fi
+else
+    printf '[SKIP]    [024] seed-kong-jwt.sh key-rotation probe (Keycloak not running)\n'
+fi
 
 # ── Result ────────────────────────────────────────────────────────────────────
 

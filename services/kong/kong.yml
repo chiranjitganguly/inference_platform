@@ -1,21 +1,24 @@
 _format_version: "3.0"
 
 # ── Consumers ────────────────────────────────────────────────────────────────
-# SMOKE_API_KEY is injected from the environment at Kong startup.
-# Set it in .env (never commit the value — .env is gitignored).
+# JWT consumer credentials (rsa_public_key) are NOT stored here.
+# They are populated at runtime by scripts/seed-kong-jwt.sh via the Kong Admin API.
+# Re-run `make seed-kong-jwt` after Keycloak key rotation (SLO: ≤5 min recovery).
 
 consumers:
-  - username: smoke-test-consumer
+  # API routes — jwt key_claim_name: iss; matches token iss = Keycloak realm URL
+  - username: keycloak-realm
 
-keyauth_credentials:
-  - consumer: smoke-test-consumer
-    key: $(SMOKE_API_KEY)
+  # Phoenix UI route — jwt key_claim_name: aud; matches token aud = "phoenix-ui"
+  - username: phoenix-realm
+
+  # Langfuse UI route — jwt key_claim_name: aud; matches token aud = "langfuse-ui"
+  - username: langfuse-realm
 
 # ── Services & Routes ─────────────────────────────────────────────────────────
 
 services:
-  # Health check service — routes /health → LiteLLM /health/liveliness (no auth required)
-  # strip_path: true strips the /health prefix; Kong appends remainder to service URL
+  # Health check — no auth required (FR-014: health endpoints exempt from JWT validation)
   - name: litellm-health
     url: http://litellm:4000/health/liveliness
     connect_timeout: 5000
@@ -38,7 +41,7 @@ services:
 
     routes:
 
-      # Model catalogue — read-only metadata, Kong → LiteLLM direct (no guardrails)
+      # Model catalogue — read-only metadata, JWT auth required
       - name: models-catalogue
         paths:
           - /v1/models
@@ -46,14 +49,29 @@ services:
           - GET
         strip_path: false
         plugins:
-          - name: key-auth
+          - name: request-transformer
             config:
-              key_names:
+              remove:
+                headers:
+                  - X-User-Roles
+                  - X-User-Team
+                  - X-User-Sub
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+                - nbf
+              clock_skew: 30
+              anonymous: ~
+              header_names:
                 - Authorization
-              key_in_header: true
-              hide_credentials: true
+              uri_param_names: []
+              cookie_names: []
+              run_on_preflight: true
+              maximum_expiration: 0
 
-      # All other /v1 traffic (inference) — auth enforced here; guardrails added in Phase 03
+      # All other /v1 inference traffic — JWT auth + claim extraction
       - name: litellm-proxy
         paths:
           - /v1
@@ -62,14 +80,62 @@ services:
           - POST
         strip_path: false
         plugins:
-          - name: key-auth
+          - name: request-transformer
             config:
-              key_names:
+              remove:
+                headers:
+                  - X-User-Roles
+                  - X-User-Team
+                  - X-User-Sub
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+                - nbf
+              clock_skew: 30
+              anonymous: ~
+              header_names:
                 - Authorization
-              key_in_header: true
-              hide_credentials: true
+              uri_param_names: []
+              cookie_names: []
+              run_on_preflight: true
+              maximum_expiration: 0
+          - name: post-function
+            config:
+              access:
+                - |
+                  -- Extract roles, team, sub from validated JWT payload and set upstream headers.
+                  -- The jwt plugin has already verified the signature, so payload decoding is safe.
+                  local auth = kong.request.get_header("Authorization")
+                  if auth and auth:sub(1, 7):lower() == "bearer " then
+                    local token = auth:sub(8)
+                    local segments = {}
+                    for seg in token:gmatch("[^.]+") do segments[#segments + 1] = seg end
+                    if #segments == 3 then
+                      local b64 = segments[2]:gsub("-", "+"):gsub("_", "/")
+                      local pad = (4 - #b64 % 4) % 4
+                      b64 = b64 .. string.rep("=", pad)
+                      local decoded = ngx.decode_base64(b64)
+                      if decoded then
+                        local ok_parse, claims = pcall(require("cjson").decode, decoded)
+                        if ok_parse and claims then
+                          if claims.roles then
+                            kong.service.request.set_header(
+                              "X-User-Roles", require("cjson").encode(claims.roles))
+                          end
+                          if claims.team then
+                            kong.service.request.set_header("X-User-Team", claims.team)
+                          end
+                          if claims.sub then
+                            kong.service.request.set_header("X-User-Sub", claims.sub)
+                          end
+                        end
+                      end
+                    end
+                  end
 
-  # ── Embeddings — dedicated service entry for 120 s batch timeout (feature 011) ──
+  # ── Embeddings — 120 s batch timeout (feature 011) ──────────────────────────
   - name: litellm-embeddings
     url: http://litellm:4000
     connect_timeout: 10000
@@ -84,14 +150,60 @@ services:
           - POST
         strip_path: false
         plugins:
-          - name: key-auth
+          - name: request-transformer
             config:
-              key_names:
+              remove:
+                headers:
+                  - X-User-Roles
+                  - X-User-Team
+                  - X-User-Sub
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+                - nbf
+              clock_skew: 30
+              anonymous: ~
+              header_names:
                 - Authorization
-              key_in_header: true
-              hide_credentials: true
+              uri_param_names: []
+              cookie_names: []
+              run_on_preflight: true
+              maximum_expiration: 0
+          - name: post-function
+            config:
+              access:
+                - |
+                  local auth = kong.request.get_header("Authorization")
+                  if auth and auth:sub(1, 7):lower() == "bearer " then
+                    local token = auth:sub(8)
+                    local segments = {}
+                    for seg in token:gmatch("[^.]+") do segments[#segments + 1] = seg end
+                    if #segments == 3 then
+                      local b64 = segments[2]:gsub("-", "+"):gsub("_", "/")
+                      local pad = (4 - #b64 % 4) % 4
+                      b64 = b64 .. string.rep("=", pad)
+                      local decoded = ngx.decode_base64(b64)
+                      if decoded then
+                        local ok_parse, claims = pcall(require("cjson").decode, decoded)
+                        if ok_parse and claims then
+                          if claims.roles then
+                            kong.service.request.set_header(
+                              "X-User-Roles", require("cjson").encode(claims.roles))
+                          end
+                          if claims.team and claims.team ~= ngx.null then
+                            kong.service.request.set_header("X-User-Team", claims.team)
+                          end
+                          if claims.sub then
+                            kong.service.request.set_header("X-User-Sub", claims.sub)
+                          end
+                        end
+                      end
+                    end
+                  end
 
-  # ── portal-backend — spend report (master key validated via LiteLLM proxy) ──
+  # ── portal-backend — spend report and cache flush ────────────────────────────
   - name: portal-backend
     url: http://portal-backend:8092
     connect_timeout: 10000
@@ -105,6 +217,19 @@ services:
         methods:
           - GET
         strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+                - nbf
+              clock_skew: 30
+              anonymous: ~
+              header_names:
+                - Authorization
+              run_on_preflight: true
+              maximum_expiration: 0
 
       - name: cache-flush
         paths:
@@ -113,19 +238,24 @@ services:
           - DELETE
         strip_path: false
         plugins:
-          - name: key-auth
+          - name: jwt
             config:
-              key_names:
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+                - nbf
+              clock_skew: 30
+              anonymous: ~
+              header_names:
                 - Authorization
-              key_in_header: true
-              hide_credentials: false
+              run_on_preflight: true
+              maximum_expiration: 0
           - name: rate-limiting
             config:
               minute: 10
               policy: local
 
-  # ── Batch inference API — async job submission, polling, and result download ──
-  # Timeout is 600 s for result downloads (large JSONL files may take time to stream).
+  # ── Batch inference API ───────────────────────────────────────────────────────
   - name: batch-api
     url: http://batch-api:8091
     connect_timeout: 10000
@@ -133,8 +263,6 @@ services:
     write_timeout:   600000
 
     routes:
-      # GET prefix route — covers both status and results; FastAPI handles sub-routing.
-      # Note: prefix routing avoids Kong Admin API form-encoding '+' as space in regex.
       - name: batch-jobs-read
         paths:
           - /v1/batch/jobs/
@@ -142,12 +270,18 @@ services:
           - GET
         strip_path: false
         plugins:
-          - name: key-auth
+          - name: jwt
             config:
-              key_names:
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+                - nbf
+              clock_skew: 30
+              anonymous: ~
+              header_names:
                 - Authorization
-              key_in_header: true
-              hide_credentials: true
+              run_on_preflight: true
+              maximum_expiration: 0
 
       - name: batch-jobs-submit
         paths:
@@ -156,14 +290,20 @@ services:
           - POST
         strip_path: false
         plugins:
-          - name: key-auth
+          - name: jwt
             config:
-              key_names:
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+                - nbf
+              clock_skew: 30
+              anonymous: ~
+              header_names:
                 - Authorization
-              key_in_header: true
-              hide_credentials: true
+              run_on_preflight: true
+              maximum_expiration: 0
 
-  # ── LiteLLM admin — key management (master key enforced by LiteLLM itself) ──
+  # ── LiteLLM admin — key management ───────────────────────────────────────────
   - name: litellm-admin
     url: http://litellm:4000
     connect_timeout: 10000
@@ -181,11 +321,6 @@ services:
         strip_path: true
 
   # ── WebSocket streaming — feature 021 ────────────────────────────────────────
-  # Routes /ws/v1/chat/completions to the guardrails service.
-  # read_timeout / write_timeout set to 120 s to keep long-lived streams alive.
-  # hide_credentials: false so Kong forwards X-Consumer-Username to guardrails
-  # (needed for per-key connection-limit tracking). The API key is never forwarded
-  # to LiteLLM — the guardrails WS handler strips it before the SSE call.
   - name: litellm-ws
     url: http://guardrails:8088
     connect_timeout: 5000
@@ -201,18 +336,79 @@ services:
           - ws
         strip_path: false
         plugins:
-          - name: key-auth
+          - name: jwt
             config:
-              key_names:
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+                - nbf
+              clock_skew: 30
+              anonymous: ~
+              header_names:
                 - Authorization
-              key_in_header: true
-              hide_credentials: false
+              run_on_preflight: true
+              maximum_expiration: 0
+
+  # ── Phoenix Arize UI — JWT protected via separate audience (feature 024) ─────
+  # Token must have aud = "phoenix-ui" (issued by phoenix-ui Keycloak client).
+  # strip_path: true so /phoenix prefix is removed before proxying to Phoenix.
+  - name: phoenix-ui
+    url: http://arize-phoenix:6006
+    connect_timeout: 5000
+    read_timeout:    30000
+    write_timeout:   30000
+
+    routes:
+      - name: phoenix-ui-route
+        paths:
+          - /phoenix
+        strip_path: true
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: aud
+              claims_to_verify:
+                - exp
+                - nbf
+              clock_skew: 30
+              anonymous: ~
+              header_names:
+                - Authorization
+              run_on_preflight: true
+              maximum_expiration: 0
+
+  # ── Langfuse UI — JWT protected via separate audience (feature 024) ──────────
+  # Token must have aud = "langfuse-ui" (issued by langfuse-ui Keycloak client).
+  - name: langfuse-ui
+    url: http://langfuse-server:3002
+    connect_timeout: 5000
+    read_timeout:    30000
+    write_timeout:   30000
+
+    routes:
+      - name: langfuse-ui-route
+        paths:
+          - /langfuse
+        strip_path: true
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: aud
+              claims_to_verify:
+                - exp
+                - nbf
+              clock_skew: 30
+              anonymous: ~
+              header_names:
+                - Authorization
+              run_on_preflight: true
+              maximum_expiration: 0
 
 # ── Global Plugins ────────────────────────────────────────────────────────────
 
 plugins:
-  # pre-function: strip any client-supplied correlation/trace headers so the
-  # gateway always issues its own authoritative identifiers (FR-002).
+  # Strip client-supplied correlation/trace headers so the gateway always issues
+  # its own authoritative identifiers (FR-002, feature 014).
   # Priority 1,000,000 — runs before correlation-id (100,001) and opentelemetry (100,000).
   - name: pre-function
     config:
@@ -228,8 +424,7 @@ plugins:
       generator:        uuid
       echo_downstream:  true
 
-  # opentelemetry: generate W3C traceparent/tracestate for upstream propagation
-  # and emit spans to the OTel Collector for gateway.request_id enrichment (FR-005, FR-010).
+  # W3C traceparent propagation to upstreams (feature 014)
   - name: opentelemetry
     config:
       endpoint: http://otel-collector:4318/v1/traces
@@ -245,8 +440,28 @@ plugins:
           - "X-Platform: inference-platform"
           - "X-API-Version: 1"
 
-  # request-size-limiting: reject payloads > 10 MB before forwarding to any upstream.
-  # Protects against context-stuffing attacks (feature 015).
+  # Reject payloads > 10 MB before forwarding to any upstream (feature 015)
   - name: request-size-limiting
     config:
       allowed_payload_size: 10
+
+  # Rewrite Kong's default jwt-plugin error bodies to platform schema.
+  # Runs in body_filter phase on all 401/403 responses from the jwt plugin.
+  - name: post-function
+    config:
+      body_filter:
+        - |
+          local status = kong.response.get_status()
+          if status == 401 or status == 403 then
+            local msg   = status == 401 and "Unauthorized" or "Forbidden"
+            local reason = status == 401 and "token_invalid" or "insufficient_permissions"
+            local body  = require("cjson").encode({
+              error   = msg,
+              message = "JWT validation failed",
+              detail  = { reason = reason }
+            })
+            ngx.arg[1] = body
+            ngx.arg[2] = true
+            kong.response.clear_header("Content-Length")
+            kong.response.set_header("Content-Type", "application/json; charset=utf-8")
+          end

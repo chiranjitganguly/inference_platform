@@ -26,9 +26,48 @@
 | 020 | Structured JSON output | 020-structured-json-output | ✓ Done |
 | 021 | WebSocket streaming | 021-websocket-streaming | ✓ Done |
 | 022 | Cache flush management | 022-cache-flush-management | ✓ Done |
-| **023** | **Guardrails bypass flag** | **023-guardrails-bypass-flag** | **✓ Done** |
+| 023 | Guardrails bypass flag | 023-guardrails-bypass-flag | ✓ Done |
+| **024** | **Enterprise SSO JWT** | **024-enterprise-sso-jwt** | **🚧 In Progress** |
 
-## Active feature: 023 — Guardrails Bypass Flag
+## Active feature: 024 — Enterprise SSO JWT Validation
+
+**Spec**: `specs/024-enterprise-sso-jwt/spec.md`
+**Plan**: `specs/024-enterprise-sso-jwt/plan.md`
+**Tasks**: `specs/024-enterprise-sso-jwt/tasks.md`
+
+### What ships in this feature
+
+- Keycloak 24 running under `auth` profile: realm `inference-platform`, RS256 tokens, 3600 s lifespan
+- Realm roles: `admin`, `engineer`, `viewer`; protocol mappers emit `roles[]` and `team` claims
+- Four OIDC clients: `inference-gateway` (client-credentials + PKCE), `platform-ui` (PKCE browser), `phoenix-ui` (bearer-only), `langfuse-ui` (bearer-only)
+- Kong `jwt` plugin replaces `key-auth` on all `/v1/*` routes; `key_claim_name: iss` validates token issuer against Keycloak realm URL
+- `scripts/seed-kong-jwt.sh`: fetches RS256 PEM from Keycloak, upserts three Kong JWT consumers idempotently; re-run after key rotation (SLO ≤5 min)
+- Post-function Lua in Kong extracts `roles`, `team`, `sub` from validated JWT payload; sets `X-User-Roles`, `X-User-Team`, `X-User-Sub` upstream headers
+- `request-transformer` plugin strips client-supplied `X-User-*` headers before the post-function sets them (prevents header spoofing)
+- OPA policy (`services/opa/policies/inference.rego`): `viewer` blocked from non-GET; `engineer` full model access (no cache flush); `admin` unrestricted
+- Guardrails service reads `X-User-Roles/Team/Sub` and includes `roles`, `team`, `sub` in structured audit log entries
+- Phoenix UI (`/phoenix`) and Langfuse UI (`/langfuse`) protected by separate `jwt` plugin instances using `key_claim_name: aud`
+- Global `post-function` body_filter rewrites Kong 401/403 responses to platform error schema `{"error": ..., "message": ..., "detail": {"reason": ...}}`
+- Platform UI (`services/platform-ui/`): Next.js 15 + next-auth v5 shell with Keycloak provider; `session.user.roles`, `session.user.team`, `session.user.access_token` populated from JWT claims
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `services/keycloak/realm-export.json` | New — realm config with roles, 4 OIDC clients, protocol mappers |
+| `services/kong/kong.yml` | Replaced key-auth with jwt plugin; added Lua claim-extraction post-function; phoenix-ui and langfuse-ui routes; consumers; global 401/403 error rewriter |
+| `services/opa/policies/inference.rego` | New — ABAC allow rules for admin/engineer/viewer roles |
+| `services/guardrails/main.py` | Reads X-User-Roles/Team/Sub; appends roles/team/sub to audit log entries |
+| `services/platform-ui/` | New — Next.js 15 minimal shell: package.json, auth.ts (next-auth v5), middleware.ts, route handler, type augmentations |
+| `scripts/seed-kong-jwt.sh` | New — idempotent JWT consumer seeding script |
+| `scripts/smoke-test.sh` | Added JWT token acquisition, 024 probes (malformed/unknown-iss/valid/UI routes/key-rotation) |
+| `docker-compose.yml` | Added Keycloak service (auth profile), keycloak_data volume |
+| `.env.example` | Added KEYCLOAK_ADMIN, KEYCLOAK_REALM, client secrets, NEXTAUTH vars |
+| `Makefile` | Added seed-kong-jwt target |
+
+---
+
+## Feature 023 — Guardrails Bypass Flag
 
 **Spec**: `specs/023-guardrails-bypass-flag/spec.md`
 **Plan**: `specs/023-guardrails-bypass-flag/plan.md`

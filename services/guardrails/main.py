@@ -753,12 +753,23 @@ def _write_audit(
         model_name = payload.get("model", "")
     except Exception:
         pass
+    # X-User-Roles/Team/Sub are set by Kong's jwt post-function after signature
+    # validation; they are safe metadata (not prompt content) per constitution §6.3.
+    roles_raw = request.headers.get("x-user-roles", "")
+    roles: list[str] = []
+    try:
+        roles = json.loads(roles_raw) if roles_raw else []
+    except Exception:
+        pass
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "event_type": "inference_request",
         "request_id": request.headers.get("x-request-id", ""),
         "key_hash": key_hash,
         "model_name": model_name,
+        "roles": roles,
+        "team": request.headers.get("x-user-team", ""),
+        "sub": request.headers.get("x-user-sub", ""),
         "pii_entity_count": 0,
         "scanner_blocked": False,
         "image_part_count": image_part_count,
