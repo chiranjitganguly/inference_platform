@@ -1344,6 +1344,81 @@ else
     printf '[SKIP]    [024] seed-kong-jwt.sh key-rotation probe (Keycloak not running)\n'
 fi
 
+# ── MFA TOTP enforcement probes (feature 025) ────────────────────────────────
+
+KEYCLOAK_ADMIN="${KEYCLOAK_ADMIN:-admin}"
+KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-}"
+
+if curl -sf --max-time 3 "${KEYCLOAK_URL}/health/ready" >/dev/null 2>&1 && [[ -n "$KEYCLOAK_ADMIN_PASSWORD" ]]; then
+  # Obtain admin token from master realm
+  _admin_token=$(curl -sf --max-time 5 \
+    -X POST "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" \
+    -d "grant_type=password" \
+    -d "client_id=admin-cli" \
+    -d "username=${KEYCLOAK_ADMIN}" \
+    -d "password=${KEYCLOAK_ADMIN_PASSWORD}" \
+    | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null || echo "")
+
+  if [[ -n "$_admin_token" ]]; then
+    _realm=$(curl -sf --max-time 5 \
+      -H "Authorization: Bearer ${_admin_token}" \
+      "${KEYCLOAK_URL}/admin/realms/${KEYCLOAK_REALM}" 2>/dev/null || echo "{}")
+
+    # [025] browserFlow must be browser-mfa
+    _browser_flow=$(printf '%s' "$_realm" \
+      | python3 -c "import sys,json; print(json.load(sys.stdin).get('browserFlow',''))" 2>/dev/null || echo "")
+    if [[ "$_browser_flow" == "browser-mfa" ]]; then
+      ok "[025] Keycloak browserFlow == browser-mfa (MFA flow active)"
+    else
+      fail "[025] Keycloak browserFlow expected browser-mfa, got: ${_browser_flow}"
+    fi
+
+    # [025] OTP policy: type=totp, digits=6, period=30, codeReusable=false
+    _otp_type=$(printf '%s' "$_realm" \
+      | python3 -c "import sys,json; print(json.load(sys.stdin).get('otpPolicyType',''))" 2>/dev/null || echo "")
+    _otp_digits=$(printf '%s' "$_realm" \
+      | python3 -c "import sys,json; print(json.load(sys.stdin).get('otpPolicyDigits',''))" 2>/dev/null || echo "")
+    _otp_period=$(printf '%s' "$_realm" \
+      | python3 -c "import sys,json; print(json.load(sys.stdin).get('otpPolicyPeriod',''))" 2>/dev/null || echo "")
+    _otp_reuse=$(printf '%s' "$_realm" \
+      | python3 -c "import sys,json; print(json.load(sys.stdin).get('otpPolicyCodeReusable',''))" 2>/dev/null || echo "")
+    if [[ "$_otp_type" == "totp" && "$_otp_digits" == "6" && "$_otp_period" == "30" && "$_otp_reuse" == "False" ]]; then
+      ok "[025] OTP policy: type=totp, digits=6, period=30, codeReusable=false (RFC 6238 compliant)"
+    else
+      fail "[025] OTP policy mismatch — type=${_otp_type} digits=${_otp_digits} period=${_otp_period} reusable=${_otp_reuse}"
+    fi
+
+    # [025] Brute-force: enabled, failureFactor=5, permanentLockout=false
+    _bf_enabled=$(printf '%s' "$_realm" \
+      | python3 -c "import sys,json; print(json.load(sys.stdin).get('bruteForceProtected',''))" 2>/dev/null || echo "")
+    _bf_factor=$(printf '%s' "$_realm" \
+      | python3 -c "import sys,json; print(json.load(sys.stdin).get('failureFactor',''))" 2>/dev/null || echo "")
+    _bf_perm=$(printf '%s' "$_realm" \
+      | python3 -c "import sys,json; print(json.load(sys.stdin).get('permanentLockout',''))" 2>/dev/null || echo "")
+    if [[ "$_bf_enabled" == "True" && "$_bf_factor" == "5" && "$_bf_perm" == "False" ]]; then
+      ok "[025] Brute-force protection: enabled, failureFactor=5, permanentLockout=false"
+    else
+      fail "[025] Brute-force config mismatch — enabled=${_bf_enabled} failureFactor=${_bf_factor} permanentLockout=${_bf_perm}"
+    fi
+
+    # [025] browser-mfa flow exists in realm authenticationFlows
+    _flow_count=$(curl -sf --max-time 5 \
+      -H "Authorization: Bearer ${_admin_token}" \
+      "${KEYCLOAK_URL}/admin/realms/${KEYCLOAK_REALM}/authentication/flows" 2>/dev/null \
+      | python3 -c "import sys,json; flows=json.load(sys.stdin); print(sum(1 for f in flows if f.get('alias')=='browser-mfa'))" 2>/dev/null || echo "0")
+    if [[ "$_flow_count" == "1" ]]; then
+      ok "[025] browser-mfa authentication flow exists in realm"
+    else
+      fail "[025] browser-mfa authentication flow not found in realm (count=${_flow_count})"
+    fi
+
+  else
+    printf '[SKIP]    [025] MFA config probes (admin token unavailable)\n'
+  fi
+else
+  printf '[SKIP]    [025] MFA config probes (Keycloak not running or KEYCLOAK_ADMIN_PASSWORD not set)\n'
+fi
+
 # ── Result ────────────────────────────────────────────────────────────────────
 
 printf '\n%d passed, %d failed\n\n' "$pass" "$fail"

@@ -27,9 +27,44 @@
 | 021 | WebSocket streaming | 021-websocket-streaming | ✓ Done |
 | 022 | Cache flush management | 022-cache-flush-management | ✓ Done |
 | 023 | Guardrails bypass flag | 023-guardrails-bypass-flag | ✓ Done |
-| **024** | **Enterprise SSO JWT** | **024-enterprise-sso-jwt** | **🚧 In Progress** |
+| 024 | Enterprise SSO JWT | 024-enterprise-sso-jwt | ✓ Done |
+| **025** | **MFA TOTP Enforcement** | **025-mfa-totp-enforcement** | **🚧 In Progress** |
 
-## Active feature: 024 — Enterprise SSO JWT Validation
+## Active feature: 025 — MFA TOTP Enforcement
+
+**Spec**: `specs/025-mfa-totp-enforcement/spec.md`
+**Plan**: `specs/025-mfa-totp-enforcement/plan.md`
+**Tasks**: `specs/025-mfa-totp-enforcement/tasks.md`
+
+### What ships in this feature
+
+- `services/keycloak/realm-export.json`: `browser-mfa` authentication flow — `auth-username-password-form` REQUIRED → `auth-otp-form` CONDITIONAL (only for users with OTP configured or required by policy)
+- OTP policy: RFC 6238 TOTP, HmacSHA1, 6-digit, 30-second window, `otpPolicyCodeReusable: false` (replay prevention), `otpPolicyLookAheadWindow: 1` (±30 s clock drift tolerance)
+- Brute-force protection: `failureFactor: 5`, `permanentLockout: false`, 15-minute lockout on 5 consecutive OTP failures
+- `browserFlow` binding updated to `"browser-mfa"` — all browser-based logins go through the new flow
+- `defaultRequiredActions: []` — MFA optional by default; admins assign `CONFIGURE_TOTP` required action per user
+- `scripts/smoke-test.sh`: four new `[025]` probes verifying browserFlow, OTP policy contract, brute-force config, and flow existence via Keycloak Admin API
+
+### Runtime verification required (needs `make up-auth`)
+
+Tasks T009–T026 require a running Keycloak instance. Complete these manually after `make up-auth`:
+1. `make restart svc=keycloak` to import updated realm-export.json
+2. Verify `browserFlow == "browser-mfa"` via Admin API (quickstart.md Step 1)
+3. Create test user, assign `CONFIGURE_TOTP`, complete enrolment flow (quickstart.md Steps 2–3)
+4. Verify returning-user TOTP challenge and wrong-code rejection (quickstart.md Step 4–5)
+5. Verify 5-failure lockout via attack-detection endpoint (quickstart.md Step 6)
+6. Run `make smoke` with `KEYCLOAK_ADMIN_PASSWORD` set — all `[025]` probes must pass
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `services/keycloak/realm-export.json` | Added browser-mfa flow (3 auth flow entries), OTP policy, brute-force config, browserFlow binding |
+| `scripts/smoke-test.sh` | Added `[025]` MFA config probes (4 checks via Keycloak Admin API) |
+
+---
+
+## Active feature (previous): 024 — Enterprise SSO JWT Validation
 
 **Spec**: `specs/024-enterprise-sso-jwt/spec.md`
 **Plan**: `specs/024-enterprise-sso-jwt/plan.md`
